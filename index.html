@@ -693,17 +693,14 @@ function renderDashboard(data) {
 <!-- Live Results -->
 <div class="section-wrap">
     <h2 class="section-heading">Live Results</h2>
-    <p class="body-text" style="text-align:center;">
-        This experiment is running live. Here are the results to date.
-    </p>
 
     <div class="chart-section">
         <div class="chart-header">
-            <h3>${data.total_scored} / ${data.total_target} tasks scored</h3>
+            <h3>Cumulative pass rate over scored tasks</h3>
             <div class="zoom-btns">
                 <button class="zoom-btn" onclick="setZoom(0)">All</button>
-                <button class="zoom-btn" onclick="setZoom(100)">Last 100</button>
-                <button class="zoom-btn active" onclick="setZoom(50)">Last 50</button>
+                <button class="zoom-btn active" onclick="setZoom(100)">Last 100</button>
+                <button class="zoom-btn" onclick="setZoom(50)">Last 50</button>
                 <button class="zoom-btn" onclick="setZoom(20)">Last 20</button>
             </div>
         </div>
@@ -711,7 +708,7 @@ function renderDashboard(data) {
             <canvas id="chart" width="760" height="240"></canvas>
             <div class="chart-tooltip" id="tooltip"></div>
         </div>
-        <div class="figure-caption">Cumulative pass rate over scored tasks. Dashed line indicates the Claude 4.5 Opus baseline (${theirScore}%).</div>
+        <div class="figure-caption">Cumulative pass rate. ${data.total_scored} of ${data.total_target} tasks scored.</div>
     </div>
 
     <div class="prob-section" id="prob-section"></div>
@@ -837,7 +834,7 @@ function renderDashboard(data) {
     DATA = data.progression;
     TARGET = data.total_target;
     THEIR_SCORE = theirScore;
-    currentZoom = 50;
+    currentZoom = 100;
     drawChart();
     setupTooltip();
     window.addEventListener('resize', drawChart);
@@ -1031,9 +1028,11 @@ function drawChart() {
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#6366f1';
-    ctx.font = '8px -apple-system, sans-serif';
+    ctx.font = '9px -apple-system, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('Claude 4.5 Opus (' + THEIR_SCORE + '%)', W - padR - 2, theirY - 5);
+    ctx.fillText(THEIR_SCORE + '%', W - padR - 2, theirY - 5);
+    // Store Opus line position for hover tooltip
+    canvas._opusY = theirY;
 
     if (visData.length === 0) {
         ctx.fillStyle = '#999';
@@ -1110,6 +1109,8 @@ function setupTooltip() {
             const dist = Math.hypot(dot.x - mx, dot.y - my);
             if (dist < minDist) { minDist = dist; closest = dot; }
         });
+        // Check if near the Opus reference line
+        const nearOpus = canvas._opusY && Math.abs(my - canvas._opusY) < 8;
         if (closest) {
             const d = closest.d;
             const icon = d.result === 'pass' ? '\u2713' : '\u2717';
@@ -1118,6 +1119,11 @@ function setupTooltip() {
             tooltip.style.display = 'block';
             tooltip.style.left = Math.min(closest.x + 12, rect.width - 180) + 'px';
             tooltip.style.top = (closest.y - 10) + 'px';
+        } else if (nearOpus) {
+            tooltip.innerHTML = 'Claude 4.5 Opus baseline (' + THEIR_SCORE + '%) \u2014 from <a href="https://www.swebench.com" target="_blank" style="color:#2563eb">swebench.com</a>';
+            tooltip.style.display = 'block';
+            tooltip.style.left = Math.min(mx + 12, rect.width - 220) + 'px';
+            tooltip.style.top = (canvas._opusY - 25) + 'px';
         } else {
             tooltip.style.display = 'none';
         }
