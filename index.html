@@ -138,6 +138,25 @@
     .phase-execute { background: #164e2e; }
     .phase-review { background: #3b3b1e; }
 
+    /* How it works */
+    .how-section { max-width: 800px; margin: 2rem auto 0; padding: 0 1rem; }
+    .how-section h3 { font-size: 0.75rem; color: #737373; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; text-align: center; }
+    .how-intro { font-size: 0.75rem; color: #525252; text-align: center; max-width: 600px; margin: 0 auto 1.25rem; line-height: 1.6; }
+    .how-intro strong { color: #a3a3a3; }
+    .pipeline { display: flex; align-items: stretch; justify-content: center; gap: 0; flex-wrap: wrap; margin: 0.5rem 0; }
+    .pipe-step { flex: 1; min-width: 120px; max-width: 160px; padding: 0.75rem 0.5rem; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px; text-align: center; }
+    .pipe-step-alt { background: #0d0a14; border-color: #2d1f4b; }
+    .pipe-step-score { background: #0a1410; border-color: #1a3a2a; }
+    .pipe-icon { font-size: 1.2rem; margin-bottom: 0.25rem; }
+    .pipe-name { font-size: 0.75rem; font-weight: 700; color: #e5e5e5; margin-bottom: 0.15rem; }
+    .pipe-model { font-size: 0.55rem; color: #404040; margin-bottom: 0.3rem; font-family: monospace; }
+    .pipe-step-alt .pipe-model { color: #6b4f8a; }
+    .pipe-desc { font-size: 0.6rem; color: #404040; line-height: 1.4; }
+    .pipe-arrow { display: flex; align-items: center; color: #262626; font-size: 1rem; padding: 0 0.25rem; }
+    .pipe-loop-label { text-align: center; font-size: 0.6rem; color: #404040; margin: 0.5rem 0; font-style: italic; }
+    .how-footer { font-size: 0.7rem; color: #404040; text-align: center; max-width: 550px; margin: 1rem auto 0; line-height: 1.5; }
+    .how-footer strong { color: #737373; }
+
     .footer { text-align: center; padding: 2rem; font-size: 0.6rem; color: #1a1a1a; }
     .footer a { color: #262626; }
 
@@ -379,14 +398,69 @@ function renderDashboard(data) {
     </div>
 </div>
 
-<div class="mid-section">
-    <div class="mid-col">
-        <h3>Pass rate by repo</h3>
-        ${repoRows}
+<div class="how-section">
+    <h3>How Megaplan works</h3>
+    <div class="how-intro">Each task goes through a structured pipeline with two models working together. <strong>${esc(executeModel)}</strong> handles reasoning and code execution, while <strong>${esc(critiqueModel)}</strong> provides independent critique and review.</div>
+
+    <div class="pipeline">
+        <div class="pipe-step">
+            <div class="pipe-icon">\uD83D\uDD0D</div>
+            <div class="pipe-name">Prep</div>
+            <div class="pipe-model">${esc(executeModel)}</div>
+            <div class="pipe-desc">Reads the codebase, finds relevant files, understands tests and constraints</div>
+        </div>
+        <div class="pipe-arrow">\u2192</div>
+        <div class="pipe-step">
+            <div class="pipe-icon">\uD83D\uDCDD</div>
+            <div class="pipe-name">Plan</div>
+            <div class="pipe-model">${esc(executeModel)}</div>
+            <div class="pipe-desc">Creates a step-by-step implementation plan with success criteria</div>
+        </div>
+        <div class="pipe-arrow">\u2192</div>
+        <div class="pipe-step pipe-step-alt">
+            <div class="pipe-icon">\uD83D\uDD0E</div>
+            <div class="pipe-name">Critique</div>
+            <div class="pipe-model">${esc(critiqueModel)}</div>
+            <div class="pipe-desc">Independent model reviews the plan, raises flags on risks and issues</div>
+        </div>
+        <div class="pipe-arrow">\u2192</div>
+        <div class="pipe-step">
+            <div class="pipe-icon">\uD83D\uDEAA</div>
+            <div class="pipe-name">Gate</div>
+            <div class="pipe-model">${esc(executeModel)}</div>
+            <div class="pipe-desc">Decides: proceed to execute, or revise the plan? Resolves flags explicitly</div>
+        </div>
     </div>
-    <div class="mid-col">
-        <h3>Latest results</h3>
-        ${feedRows}
+
+    <div class="pipe-loop-label">\u21BB If gate says iterate: revise \u2192 critique \u2192 gate (up to 3 rounds)</div>
+
+    <div class="pipeline">
+        <div class="pipe-step">
+            <div class="pipe-icon">\u2699\uFE0F</div>
+            <div class="pipe-name">Execute</div>
+            <div class="pipe-model">${esc(executeModel)}</div>
+            <div class="pipe-desc">Makes the actual code changes, runs tests, produces the patch</div>
+        </div>
+        <div class="pipe-arrow">\u2192</div>
+        <div class="pipe-step pipe-step-alt">
+            <div class="pipe-icon">\u2705</div>
+            <div class="pipe-name">Review</div>
+            <div class="pipe-model">${esc(critiqueModel)}</div>
+            <div class="pipe-desc">Independent model verifies the changes against the original requirements</div>
+        </div>
+        <div class="pipe-arrow">\u2192</div>
+        <div class="pipe-step pipe-step-score">
+            <div class="pipe-icon">\uD83C\uDFAF</div>
+            <div class="pipe-name">Score</div>
+            <div class="pipe-model">SWE-bench</div>
+            <div class="pipe-desc">Patch tested in Docker against the official test suite via Modal</div>
+        </div>
+    </div>
+
+    <div class="how-footer">
+        The key insight: using a <strong>separate model for critique</strong> avoids self-confirmation bias.
+        The planning model can't just approve its own work \u2014 an independent critic must be satisfied.
+        This is running at <strong>heavy</strong> robustness (8 critique checks per round).
     </div>
 </div>
 
