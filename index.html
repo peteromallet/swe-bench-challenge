@@ -747,32 +747,13 @@ function renderDashboard(data) {
 <!-- Key Findings -->
 <div class="section-wrap">
     <h2 class="section-heading">Key Findings</h2>
-
-    <p class="body-text" style="margin-bottom: 0.5rem;"><em>On multi-model orchestration:</em></p>
     <ul class="body-list">
-        <li><strong>Different models for different steps.</strong> Using the same model for every phase reinforces blind spots. Splitting planning and critique across different model families adds beneficial variability \u2014 they have complementary failure modes with less overlap, and the critique model catches things the planning model is blind to.</li>
-        <li><strong>Reasoning mode is not portable.</strong> Each model family implements "thinking" differently. Qwen puts output in a <code>reasoning</code> field with null content; GLM puts JSON inside reasoning tags. A multi-model system must handle each variant explicitly \u2014 there's no universal abstraction.</li>
-    </ul>
-
-    <p class="body-text" style="margin-bottom: 0.5rem;"><em>On critique and gating:</em></p>
-    <ul class="body-list">
-        <li><strong>Separate detection from judgment.</strong> Early critique versions let the model explain away concerns ("this diverges from the hint but seems fine"). We fixed this by telling it to flag any difference or tension, even if it seems justified. The gate decides what's acceptable, not the critic. In one case, the critique identified the wrong API being used <em>twice</em> but didn't flag it because it rationalised the divergence.</li>
-        <li><strong>The gate must be sovereign.</strong> We found the orchestrator was overriding the gate's PROCEED decision when blocking flags remained, forcing infinite critique\u2192revise loops on structurally unresolvable flags. The fix: if the gate says PROCEED after seeing all flags, respect that informed decision. Deterministic override logic can create deadlocks that only the LLM's contextual judgment can break.</li>
-        <li><strong>Parallel checks beat monolithic review.</strong> Each critique check (correctness, scope, callers, verification, etc.) runs as an independent parallel sub-agent. This is faster and produces better results than a single review pass, since each check gets focused attention on one dimension.</li>
-    </ul>
-
-    <p class="body-text" style="margin-bottom: 0.5rem;"><em>On prompt design:</em></p>
-    <ul class="body-list">
-        <li><strong>Prompt, don't prescribe.</strong> Overly specific guidance ("you MUST do FOUR searches") causes models to perform the letter of the instruction rather than the spirit. Softer guidance with the same intent but flexible execution consistently produced better results. Multiple prescriptive changes were reverted after they helped one case but hurt others.</li>
-        <li><strong>Treat upstream context as hypothesis.</strong> Originally the plan was told "if prep identifies the fix, trust it." This caused blind commitment to the first approach. Changing to "use it as your starting hypothesis \u2014 but consider if there's a simpler fix" improved outcomes significantly.</li>
-        <li><strong>Template files over freeform JSON.</strong> MiniMax had a 75% failure rate producing structured JSON as text output. Writing a template file to disk and having the model fill it in via tool calls dropped that to near zero. Models that can explore codebases and edit files often can't reliably emit raw JSON.</li>
-    </ul>
-
-    <p class="body-text" style="margin-bottom: 0.5rem;"><em>On the improvement loop:</em></p>
-    <ul class="body-list">
-        <li><strong>The overfitting trap is real.</strong> Eval-driven improvement loops have a strong pull toward overfitting to the specific failure set. Multiple changes were reverted after they turned out to be too task-specific. We maintained the rule: if it only helps one task, don't do it.</li>
-        <li><strong>Scoring infrastructure is a first-class system.</strong> "Did the test fail or did the scorer fail?" must be answerable with evidence. Our scoring system grew to 772 lines with auto-restart, error categorisation (12 categories), exponential backoff, and a human review framework \u2014 because scoring ambiguity was a bigger source of noise than model quality.</li>
-        <li><strong>Multi-agent handoff interfaces are a rich bug source.</strong> The critique-gate interface went through five rounds of debugging: findings not reaching the gate, ID collisions, status lookup using wrong field, flag resolution not wired through, severity defaults too aggressive. Schema correctness doesn't guarantee wiring correctness.</li>
+        <li><strong>Different models for different steps.</strong> Using the same model for every phase reinforces blind spots. When we split planning (GLM-5.1) and critique (MiniMax-M2.7) across different model families, the critique model consistently caught issues the planning model was blind to \u2014 particularly around edge cases and API misuse. Using Qwen 3.5 for all phases including critique produced a 50% pass rate vs 81% with the split approach.</li>
+        <li><strong>Separate detection from judgment.</strong> Early critique versions let the model explain away concerns ("this diverges from the hint but seems fine"). In one concrete case, the critique identified the wrong API being used <em>twice</em> but didn't flag it because it rationalised the divergence. Telling the model to flag any difference and letting a downstream gate decide acceptability fixed this class of failure entirely.</li>
+        <li><strong>Template files over freeform JSON.</strong> MiniMax-M2.7 had a 75% failure rate producing structured JSON as its final text response. Writing a template file to disk and having the model fill it in via tool calls dropped failures to near zero. The same model that couldn't emit valid JSON could reliably read, modify, and write files.</li>
+        <li><strong>Deterministic overrides can deadlock LLM pipelines.</strong> The orchestrator was overriding the gate's PROCEED decision whenever blocking flags remained, forcing infinite critique\u2192revise loops. Some flags were structurally unresolvable (referencing tests injected by the eval harness). The gate LLM correctly judged these as acceptable tradeoffs, but the handler's mechanical flag-count check overruled it every time. The fix: trust the LLM's informed decision over deterministic heuristics.</li>
+        <li><strong>Multi-agent handoff interfaces are a rich bug source.</strong> The critique-gate interface went through five rounds of debugging: findings not reaching the gate, flag ID collisions, status lookup keyed on the wrong field, resolution data not wired through the artifact, severity defaults creating spurious blockers. Schema correctness does not guarantee wiring correctness.</li>
+        <li><strong>Scoring infrastructure needs its own reliability engineering.</strong> "Did the test fail or did the scorer fail?" must be answerable with evidence. Our scorer grew to 772 lines with auto-restart, 12 error categories, exponential backoff, and a structured human review framework \u2014 because scoring ambiguity turned out to be a bigger source of noise than model quality.</li>
     </ul>
 </div>
 
