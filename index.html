@@ -414,65 +414,15 @@ function renderDashboard(data) {
     renderProbability(data.passed, data.total_scored, data.total_target, theirScore);
 }
 
-function betaSample(a, b) {
-    // Joehnk's method for beta distribution sampling
-    let u, v, x;
-    do {
-        u = Math.random(); v = Math.random();
-        x = Math.pow(u, 1/a);
-        const y = Math.pow(v, 1/b);
-        if (x + y > 1) continue;
-        return x / (x + y);
-    } while (true);
-}
-
 function renderProbability(passes, total, target, opusScore) {
-    if (total < 3) { document.getElementById('prob-section').innerHTML = ''; return; }
+    const prob = window._dashData && window._dashData.probability;
+    if (!prob || total < 3) { document.getElementById('prob-section').innerHTML = ''; return; }
 
-    const a = passes + 1;
-    const b = (total - passes) + 1;
-    const remaining = target - total;
-    const opusFrac = opusScore / 100;
-    const N = 10000;
-
-    // Sample final rates from posterior using normal approx for binomial
-    const finalRates = [];
-    let beatCount = 0;
-    for (let i = 0; i < N; i++) {
-        const p = betaSample(a, b);
-        // Normal approximation to Binomial(remaining, p)
-        const mean = remaining * p;
-        const std = Math.sqrt(remaining * p * (1 - p));
-        // Box-Muller for normal sample
-        const u1 = Math.random(), u2 = Math.random();
-        const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-        const futurePasses = Math.max(0, Math.min(remaining, Math.round(mean + std * z)));
-        const rate = (passes + futurePasses) / target;
-        finalRates.push(rate);
-        if (rate > opusFrac) beatCount++;
-    }
-    const beatProb = Math.round(beatCount / N * 100);
-
-    // Compute percentiles
-    finalRates.sort((a, b) => a - b);
-    const p10 = finalRates[Math.floor(N * 0.1)];
-    const p50 = finalRates[Math.floor(N * 0.5)];
-    const p90 = finalRates[Math.floor(N * 0.9)];
-
-    // Color based on probability
+    const beatProb = prob.beat_prob;
     const color = beatProb >= 60 ? '#22c55e' : beatProb >= 40 ? '#f59e0b' : '#ef4444';
     const glowColor = beatProb >= 60 ? '#22c55e33' : beatProb >= 40 ? '#f59e0b33' : '#ef444433';
-
-    // Build distribution histogram for the density plot
-    const bins = 50;
-    const hist = new Array(bins).fill(0);
-    const binMin = 0.5, binMax = 1.0;
-    const binW = (binMax - binMin) / bins;
-    finalRates.forEach(r => {
-        const idx = Math.floor((r - binMin) / binW);
-        if (idx >= 0 && idx < bins) hist[idx]++;
-    });
-    const histMax = Math.max(...hist);
+    const hist = prob.hist || [];
+    const histMax = Math.max(...hist, 1);
 
     const el = document.getElementById('prob-section');
     el.innerHTML = `
@@ -486,15 +436,15 @@ function renderProbability(passes, total, target, opusScore) {
         </div>
         <div class="prob-ranges">
             <div class="prob-range">
-                <div class="prob-range-val" style="color:#ef4444">${(p10 * 100).toFixed(1)}%</div>
+                <div class="prob-range-val" style="color:#ef4444">${prob.p10}%</div>
                 <div class="prob-range-label">pessimistic (10th)</div>
             </div>
             <div class="prob-range">
-                <div class="prob-range-val" style="color:#e5e5e5">${(p50 * 100).toFixed(1)}%</div>
+                <div class="prob-range-val" style="color:#e5e5e5">${prob.p50}%</div>
                 <div class="prob-range-label">expected (median)</div>
             </div>
             <div class="prob-range">
-                <div class="prob-range-val" style="color:#22c55e">${(p90 * 100).toFixed(1)}%</div>
+                <div class="prob-range-val" style="color:#22c55e">${prob.p90}%</div>
                 <div class="prob-range-label">optimistic (90th)</div>
             </div>
         </div>
@@ -515,12 +465,14 @@ function renderProbability(passes, total, target, opusScore) {
     const W = rect.width, H = rect.height;
 
     // Draw histogram bars
+    const bins = hist.length;
+    const binMin = 0.5, binMax = 1.0, binW = (binMax - binMin) / bins;
+    const opusFrac = opusScore / 100;
     const barW = W / bins;
     for (let i = 0; i < bins; i++) {
         const barH = (hist[i] / histMax) * (H - 10);
         const pct = binMin + (i + 0.5) * binW;
-        const isAbove = pct > opusFrac;
-        ctx.fillStyle = isAbove ? '#22c55e44' : '#ef444433';
+        ctx.fillStyle = pct > opusFrac ? '#22c55e44' : '#ef444433';
         ctx.fillRect(i * barW, H - barH, barW - 1, barH);
     }
 
@@ -716,7 +668,7 @@ function toggleTaskSort() {
 // Load data and render
 fetch('data.json')
     .then(r => r.json())
-    .then(renderDashboard)
+    .then(data => { window._dashData = data; renderDashboard(data); })
     .catch(err => {
         document.getElementById('app').innerHTML = '<div class="loading">Failed to load data: ' + err.message + '</div>';
     });
