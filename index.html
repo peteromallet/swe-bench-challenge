@@ -32,10 +32,24 @@
     .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #22c55e; margin-right: 4px; animation: pulse 2s infinite; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-    .vs-badge { display: flex; align-items: center; justify-content: center; margin: 1rem 0 0.5rem; }
-    .vs-text { font-size: 0.8rem; padding: 0.2rem 0.75rem; border-radius: 9999px; font-weight: 700; }
-    .vs-winning { background: #22c55e22; color: #4ade80; border: 1px solid #22c55e44; }
-    .vs-losing { background: #ef444422; color: #fca5a5; border: 1px solid #ef444444; }
+    /* Probability section */
+    .prob-section { max-width: 800px; margin: 1.5rem auto 0; padding: 0 1rem; text-align: center; }
+    .prob-section h3 { font-size: 0.75rem; color: #404040; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+    .prob-big { font-size: 3rem; font-weight: 800; line-height: 1; margin-bottom: 0.25rem; }
+    .prob-label { font-size: 0.75rem; color: #525252; margin-bottom: 1rem; }
+    .prob-bar-wrap { max-width: 500px; margin: 0 auto 0.5rem; }
+    .prob-bar-bg { height: 24px; background: #111; border-radius: 12px; overflow: hidden; position: relative; }
+    .prob-bar-fill { height: 100%; border-radius: 12px; transition: width 0.5s ease; position: relative; }
+    .prob-bar-fill::after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%); animation: shimmer 2s infinite; }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    .prob-ranges { display: flex; justify-content: center; gap: 1.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+    .prob-range { text-align: center; }
+    .prob-range-val { font-size: 1.1rem; font-weight: 700; }
+    .prob-range-label { font-size: 0.55rem; color: #404040; text-transform: uppercase; letter-spacing: 0.05em; }
+    .prob-dist { max-width: 500px; margin: 1rem auto 0; height: 60px; position: relative; }
+    .prob-dist canvas { width: 100%; height: 60px; }
+    .prob-dist-marker { position: absolute; top: 0; height: 100%; width: 2px; background: #818cf8; opacity: 0.8; }
+    .prob-dist-label { position: absolute; top: -14px; font-size: 0.55rem; color: #818cf8; transform: translateX(-50%); white-space: nowrap; }
 
     /* Chart */
     .chart-section { max-width: 800px; margin: 1.5rem auto 0; padding: 0 1rem; }
@@ -310,6 +324,8 @@ function renderDashboard(data) {
     <!-- vs-badge removed for cleaner layout -->
 </div>
 
+<div class="prob-section" id="prob-section"></div>
+
 <div class="chart-section">
     <div class="chart-header">
         <h3>Score progression (${data.total_scored} / ${data.total_target} tasks)</h3>
@@ -393,6 +409,135 @@ function renderDashboard(data) {
     drawChart();
     setupTooltip();
     window.addEventListener('resize', drawChart);
+
+    // Probability computation
+    renderProbability(data.passed, data.total_scored, data.total_target, theirScore);
+}
+
+function betaSample(a, b) {
+    // Joehnk's method for beta distribution sampling
+    let u, v, x;
+    do {
+        u = Math.random(); v = Math.random();
+        x = Math.pow(u, 1/a);
+        const y = Math.pow(v, 1/b);
+        if (x + y > 1) continue;
+        return x / (x + y);
+    } while (true);
+}
+
+function renderProbability(passes, total, target, opusScore) {
+    if (total < 3) { document.getElementById('prob-section').innerHTML = ''; return; }
+
+    const a = passes + 1;
+    const b = (total - passes) + 1;
+    const remaining = target - total;
+    const opusFrac = opusScore / 100;
+    const N = 50000;
+
+    // Sample final rates from posterior
+    const finalRates = [];
+    let beatCount = 0;
+    for (let i = 0; i < N; i++) {
+        const p = betaSample(a, b);
+        // Simulate remaining tasks
+        let futurePasses = 0;
+        for (let j = 0; j < remaining; j++) {
+            if (Math.random() < p) futurePasses++;
+        }
+        const rate = (passes + futurePasses) / target;
+        finalRates.push(rate);
+        if (rate > opusFrac) beatCount++;
+    }
+    const beatProb = Math.round(beatCount / N * 100);
+
+    // Compute percentiles
+    finalRates.sort((a, b) => a - b);
+    const p10 = finalRates[Math.floor(N * 0.1)];
+    const p50 = finalRates[Math.floor(N * 0.5)];
+    const p90 = finalRates[Math.floor(N * 0.9)];
+
+    // Color based on probability
+    const color = beatProb >= 60 ? '#22c55e' : beatProb >= 40 ? '#f59e0b' : '#ef4444';
+    const glowColor = beatProb >= 60 ? '#22c55e33' : beatProb >= 40 ? '#f59e0b33' : '#ef444433';
+
+    // Build distribution histogram for the density plot
+    const bins = 50;
+    const hist = new Array(bins).fill(0);
+    const binMin = 0.5, binMax = 1.0;
+    const binW = (binMax - binMin) / bins;
+    finalRates.forEach(r => {
+        const idx = Math.floor((r - binMin) / binW);
+        if (idx >= 0 && idx < bins) hist[idx]++;
+    });
+    const histMax = Math.max(...hist);
+
+    const el = document.getElementById('prob-section');
+    el.innerHTML = `
+        <h3>Likelihood to beat Opus (${opusScore}%)</h3>
+        <div class="prob-big" style="color:${color}; text-shadow: 0 0 30px ${glowColor}">${beatProb}%</div>
+        <div class="prob-label">chance of finishing above ${opusScore}% based on ${total} tasks scored so far</div>
+        <div class="prob-bar-wrap">
+            <div class="prob-bar-bg">
+                <div class="prob-bar-fill" style="width:${beatProb}%; background: linear-gradient(90deg, ${color}88, ${color})"></div>
+            </div>
+        </div>
+        <div class="prob-ranges">
+            <div class="prob-range">
+                <div class="prob-range-val" style="color:#ef4444">${(p10 * 100).toFixed(1)}%</div>
+                <div class="prob-range-label">pessimistic (10th)</div>
+            </div>
+            <div class="prob-range">
+                <div class="prob-range-val" style="color:#e5e5e5">${(p50 * 100).toFixed(1)}%</div>
+                <div class="prob-range-label">expected (median)</div>
+            </div>
+            <div class="prob-range">
+                <div class="prob-range-val" style="color:#22c55e">${(p90 * 100).toFixed(1)}%</div>
+                <div class="prob-range-label">optimistic (90th)</div>
+            </div>
+        </div>
+        <div class="prob-dist">
+            <canvas id="prob-canvas" width="500" height="60"></canvas>
+        </div>
+    `;
+
+    // Draw distribution
+    const canvas = document.getElementById('prob-canvas');
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const W = rect.width, H = rect.height;
+
+    // Draw histogram bars
+    const barW = W / bins;
+    for (let i = 0; i < bins; i++) {
+        const barH = (hist[i] / histMax) * (H - 10);
+        const pct = binMin + (i + 0.5) * binW;
+        const isAbove = pct > opusFrac;
+        ctx.fillStyle = isAbove ? '#22c55e44' : '#ef444433';
+        ctx.fillRect(i * barW, H - barH, barW - 1, barH);
+    }
+
+    // Opus line
+    const opusX = ((opusFrac - binMin) / (binMax - binMin)) * W;
+    ctx.strokeStyle = '#818cf8';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(opusX, 0);
+    ctx.lineTo(opusX, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Label
+    ctx.fillStyle = '#818cf8';
+    ctx.font = '9px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Opus ' + opusScore + '%', opusX, 10);
 }
 
 function setZoom(n) {
