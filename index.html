@@ -698,7 +698,7 @@ function renderDashboard(data) {
 
     <div class="chart-section">
         <div class="chart-header">
-            <h3>Cumulative pass rate over scored tasks</h3>
+            <h3>After ${data.total_scored} tasks, ${esc(executeModel)}+${esc(critiqueModel)} is ${winning ? 'ahead' : 'behind'} ${ourScore.toFixed(1)} to ${theirScore}</h3>
             <div class="zoom-btns">
                 <button class="zoom-btn" onclick="setZoom(0)">All</button>
                 <button class="zoom-btn active" onclick="setZoom(100)">Last 100</button>
@@ -706,11 +706,11 @@ function renderDashboard(data) {
                 <button class="zoom-btn" onclick="setZoom(20)">Last 20</button>
             </div>
         </div>
-        <div class="chart-wrap">
+        <div class="chart-wrap" style="position:relative;">
+            <div style="position:absolute; top:8px; left:50px; font-size:0.75rem; color:#999; z-index:5; pointer-events:none;">Cumulative pass rate over scored tasks</div>
             <canvas id="chart" width="760" height="240"></canvas>
             <div class="chart-tooltip" id="tooltip"></div>
         </div>
-        <div class="figure-caption">Cumulative pass rate. ${data.total_scored} of ${data.total_target} tasks scored.</div>
     </div>
 
     <div class="prob-section" id="prob-section"></div>
@@ -1032,7 +1032,7 @@ function drawChart() {
     ctx.fillStyle = '#6366f1';
     ctx.font = '9px -apple-system, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(THEIR_SCORE + '%', W - padR - 2, theirY - 5);
+    ctx.fillText('Opus ' + THEIR_SCORE + '%', W - padR - 2, theirY - 5);
     // Store Opus line position for hover tooltip
     canvas._opusY = theirY;
 
@@ -1119,13 +1119,15 @@ function setupTooltip() {
             const color = d.result === 'pass' ? '#16a34a' : '#dc2626';
             tooltip.innerHTML = '<span style="color:' + color + '">' + icon + '</span> #' + d.n + ' ' + d.task_id + '<br><span style="color:#888">Pass rate: ' + d.pass_rate + '%</span>';
             tooltip.style.display = 'block';
-            tooltip.style.left = Math.min(closest.x + 12, rect.width - 180) + 'px';
+            const ttLeft = closest.x + 12 + 180 > rect.width ? closest.x - 190 : closest.x + 12;
+            tooltip.style.left = Math.max(5, ttLeft) + 'px';
             tooltip.style.top = (closest.y - 10) + 'px';
         } else if (nearOpus) {
             tooltip.innerHTML = 'Claude 4.5 Opus baseline (' + THEIR_SCORE + '%) \u2014 from <a href="https://www.swebench.com" target="_blank" style="color:#2563eb">swebench.com</a>';
             tooltip.style.display = 'block';
-            tooltip.style.left = Math.min(mx + 12, rect.width - 220) + 'px';
-            tooltip.style.top = (canvas._opusY - 25) + 'px';
+            const ttLeft2 = mx + 12 + 250 > rect.width ? mx - 260 : mx + 12;
+            tooltip.style.left = Math.max(5, ttLeft2) + 'px';
+            tooltip.style.top = (canvas._opusY - 30) + 'px';
         } else {
             tooltip.style.display = 'none';
         }
