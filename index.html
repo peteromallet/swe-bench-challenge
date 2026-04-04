@@ -532,7 +532,21 @@ function drawChart() {
 
     const xRange = xMax - xMin || 1;
     const x = n => padL + ((n - xMin) / xRange) * cW;
-    const y = pct => padT + cH - (pct / 100) * cH;
+
+    // Fit Y-axis to data range
+    let yMin = 0, yMax = 100;
+    if (visData.length > 0) {
+        const rates = visData.map(d => d.pass_rate);
+        const minRate = Math.min(...rates);
+        const maxRate = Math.max(...rates);
+        // Include the Opus reference line in the range
+        const lo = Math.min(minRate, THEIR_SCORE);
+        const hi = Math.max(maxRate, THEIR_SCORE);
+        yMin = Math.max(0, Math.floor(lo / 5) * 5 - 5);
+        yMax = Math.min(100, Math.ceil(hi / 5) * 5 + 5);
+    }
+    const yRange = yMax - yMin || 1;
+    const y = pct => padT + cH - ((pct - yMin) / yRange) * cH;
 
     ctx.fillStyle = '#050505';
     ctx.fillRect(0, 0, W, H);
@@ -541,7 +555,10 @@ function drawChart() {
     ctx.lineWidth = 1;
     ctx.font = '9px -apple-system, sans-serif';
     ctx.textAlign = 'right';
-    for (const pct of [0, 25, 50, 75, 100]) {
+    const yStep = yRange <= 20 ? 2 : yRange <= 40 ? 5 : 10;
+    const gridLines = [];
+    for (let p = Math.ceil(yMin / yStep) * yStep; p <= yMax; p += yStep) gridLines.push(p);
+    for (const pct of gridLines) {
         const yy = y(pct);
         ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
         ctx.fillStyle = '#404040';
