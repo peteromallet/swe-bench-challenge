@@ -1,4 +1,4 @@
-# SWE-bench Challenge: Can Open-Source Models Beat Closed-Source?
+# Megaplan Autoimprover
 
 A live experiment testing whether open-weight language models, guided by a general-purpose harness, can match or exceed the best closed-source models on the [SWE-bench Verified](https://www.swebench.com) benchmark.
 
@@ -16,8 +16,8 @@ The dashboard shows:
 
 ## Related Repositories
 
-- [**Megaplan**](https://github.com/peteromallet/megaplan) -- The general-purpose harness that structures LLM work into phases
-- [**Hermes Agent**](https://github.com/peteromallet/hermes-agent) -- The agent framework powering the evaluation pipeline
+- [**Megaplan**](https://github.com/peteromallet/megaplan) -- The general-purpose planning harness that structures LLM work into phases
+- [**hermes-agent**](https://github.com/peteromallet/hermes-agent) -- Fork of Hermes Agent with automated SWE-bench evaluation tooling (experiment orchestration code)
 
 ## Data
 
