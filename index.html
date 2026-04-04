@@ -567,6 +567,69 @@ function renderDashboard(data) {
         <a href="https://github.com/peteromallet/hermes-megaplan">hermes-megaplan</a> (SWE-bench orchestration).
     </p>
 
+    <p class="body-text" style="text-align:center; margin-top: 2rem;">
+        Each task goes through a structured pipeline with two models working together.
+        <strong>${esc(executeModel)}</strong> handles reasoning and code execution, while
+        <strong>${esc(critiqueModel)}</strong> provides independent critique and review.
+    </p>
+
+    <div class="pipeline">
+        <div class="pipe-step">
+            <div class="pipe-icon">\uD83D\uDD0D</div>
+            <div class="pipe-name">Prep</div>
+            <div class="pipe-model">${esc(executeModel)}</div>
+            <div class="pipe-desc">Reads the codebase, finds relevant files, understands tests and constraints</div>
+        </div>
+        <div class="pipe-arrow">\u2192</div>
+        <div class="pipe-step">
+            <div class="pipe-icon">\uD83D\uDCDD</div>
+            <div class="pipe-name">Plan</div>
+            <div class="pipe-model">${esc(executeModel)}</div>
+            <div class="pipe-desc">Creates a step-by-step implementation plan with success criteria</div>
+        </div>
+        <div class="pipe-arrow">\u2192</div>
+        <div class="pipe-step pipe-step-alt">
+            <div class="pipe-icon">\uD83D\uDD0E</div>
+            <div class="pipe-name">Critique</div>
+            <div class="pipe-model">${esc(critiqueModel)}</div>
+            <div class="pipe-desc">Independent model reviews the plan, raises flags on risks and issues</div>
+        </div>
+        <div class="pipe-arrow">\u2192</div>
+        <div class="pipe-step">
+            <div class="pipe-icon">\uD83D\uDEAA</div>
+            <div class="pipe-name">Gate</div>
+            <div class="pipe-model">${esc(executeModel)}</div>
+            <div class="pipe-desc">Decides: proceed to execute, or revise the plan? Resolves flags explicitly</div>
+        </div>
+    </div>
+
+    <div class="pipe-loop-label">\u21BB If gate says iterate: revise \u2192 critique \u2192 gate (up to 3 rounds)</div>
+
+    <div class="pipeline">
+        <div class="pipe-step">
+            <div class="pipe-icon">\u2699\uFE0F</div>
+            <div class="pipe-name">Execute</div>
+            <div class="pipe-model">${esc(executeModel)}</div>
+            <div class="pipe-desc">Makes the actual code changes, runs tests, produces the patch</div>
+        </div>
+        <div class="pipe-arrow">\u2192</div>
+        <div class="pipe-step pipe-step-alt">
+            <div class="pipe-icon">\u2705</div>
+            <div class="pipe-name">Review</div>
+            <div class="pipe-model">${esc(critiqueModel)}</div>
+            <div class="pipe-desc">Independent model verifies the changes against the original requirements</div>
+        </div>
+        <div class="pipe-arrow">\u2192</div>
+        <div class="pipe-step pipe-step-score">
+            <div class="pipe-icon">\uD83C\uDFAF</div>
+            <div class="pipe-name">Score</div>
+            <div class="pipe-model">SWE-bench</div>
+            <div class="pipe-desc">Patch tested in Docker against the official test suite via Modal</div>
+        </div>
+    </div>
+
+    <div class="figure-caption">Figure 2: The Megaplan pipeline. Purple steps use an independent critique model.</div>
+
     <h2 class="section-heading">Scoring &amp; Validation</h2>
     <p class="body-text">
         Tasks are drawn randomly from the full SWE-bench Verified set. Each patch is scored by running it
@@ -579,15 +642,6 @@ function renderDashboard(data) {
         repository for independent validation.
     </p>
 
-    <h2 class="section-heading">Key Findings</h2>
-    <ul class="body-list">
-        <li><strong>Multi-model diversity reduces bias.</strong> Using the same model for every step reinforces blind spots. Splitting planning and critique across different models adds beneficial variability \u2014 they have complementary failure modes with less overlap.</li>
-        <li><strong>Critique must flag, not rationalise.</strong> Early versions let the critique model explain away concerns ("this diverges from the hint but seems fine"). We fixed this by telling the model to flag any difference or tension, even if it seems justified \u2014 the gate decides what's acceptable, not the critic.</li>
-        <li><strong>Template files over freeform JSON.</strong> MiniMax-M2.7 had a 75% failure rate when asked to produce structured JSON as a final text response. Writing a template file to disk and having the model fill it in via tool calls dropped that to near zero \u2014 models that can explore codebases and edit files often can't reliably emit raw JSON.</li>
-        <li><strong>Parallel critique checks.</strong> Each critique check (correctness, scope, callers, verification, etc.) runs as an independent parallel call. This is both faster and produces better results than a single monolithic review, since each check gets focused attention.</li>
-        <li><strong>The gate must be sovereign.</strong> We discovered the orchestrator was overriding the gate's PROCEED decision when blocking flags remained, forcing infinite critique\u2192revise loops. The fix: if the gate says PROCEED after seeing all flags, respect that decision. Remaining flags become accepted tradeoffs.</li>
-        <li><strong>Gating prevents rubber-stamping.</strong> The gate mechanism (proceed vs. iterate vs. escalate) is essential. Without it, models approve their own plans uncritically.</li>
-    </ul>
 </div>
 
 <!-- Live Results -->
@@ -670,69 +724,6 @@ function renderDashboard(data) {
     </div>
 </div>
 
-<!-- Pipeline (part of Methodology) -->
-<div class="section-wrap">
-    <p class="body-text" style="text-align:center">
-        Each task goes through a structured pipeline with two models working together.
-        <strong>${esc(executeModel)}</strong> handles reasoning and code execution, while
-        <strong>${esc(critiqueModel)}</strong> provides independent critique and review.
-    </p>
-
-    <div class="pipeline">
-        <div class="pipe-step">
-            <div class="pipe-icon">\uD83D\uDD0D</div>
-            <div class="pipe-name">Prep</div>
-            <div class="pipe-model">${esc(executeModel)}</div>
-            <div class="pipe-desc">Reads the codebase, finds relevant files, understands tests and constraints</div>
-        </div>
-        <div class="pipe-arrow">\u2192</div>
-        <div class="pipe-step">
-            <div class="pipe-icon">\uD83D\uDCDD</div>
-            <div class="pipe-name">Plan</div>
-            <div class="pipe-model">${esc(executeModel)}</div>
-            <div class="pipe-desc">Creates a step-by-step implementation plan with success criteria</div>
-        </div>
-        <div class="pipe-arrow">\u2192</div>
-        <div class="pipe-step pipe-step-alt">
-            <div class="pipe-icon">\uD83D\uDD0E</div>
-            <div class="pipe-name">Critique</div>
-            <div class="pipe-model">${esc(critiqueModel)}</div>
-            <div class="pipe-desc">Independent model reviews the plan, raises flags on risks and issues</div>
-        </div>
-        <div class="pipe-arrow">\u2192</div>
-        <div class="pipe-step">
-            <div class="pipe-icon">\uD83D\uDEAA</div>
-            <div class="pipe-name">Gate</div>
-            <div class="pipe-model">${esc(executeModel)}</div>
-            <div class="pipe-desc">Decides: proceed to execute, or revise the plan? Resolves flags explicitly</div>
-        </div>
-    </div>
-
-    <div class="pipe-loop-label">\u21BB If gate says iterate: revise \u2192 critique \u2192 gate (up to 3 rounds)</div>
-
-    <div class="pipeline">
-        <div class="pipe-step">
-            <div class="pipe-icon">\u2699\uFE0F</div>
-            <div class="pipe-name">Execute</div>
-            <div class="pipe-model">${esc(executeModel)}</div>
-            <div class="pipe-desc">Makes the actual code changes, runs tests, produces the patch</div>
-        </div>
-        <div class="pipe-arrow">\u2192</div>
-        <div class="pipe-step pipe-step-alt">
-            <div class="pipe-icon">\u2705</div>
-            <div class="pipe-name">Review</div>
-            <div class="pipe-model">${esc(critiqueModel)}</div>
-            <div class="pipe-desc">Independent model verifies the changes against the original requirements</div>
-        </div>
-        <div class="pipe-arrow">\u2192</div>
-        <div class="pipe-step pipe-step-score">
-            <div class="pipe-icon">\uD83C\uDFAF</div>
-            <div class="pipe-name">Score</div>
-            <div class="pipe-model">SWE-bench</div>
-            <div class="pipe-desc">Patch tested in Docker against the official test suite via Modal</div>
-        </div>
-    </div>
-</div>
 
 <!-- Tasks -->
 <div class="section-wrap">
@@ -746,6 +737,19 @@ function renderDashboard(data) {
             <div id="task-list">${taskRows}</div>
         </div>
     </div>
+</div>
+
+<!-- Key Findings -->
+<div class="section-wrap">
+    <h2 class="section-heading">Key Findings</h2>
+    <ul class="body-list">
+        <li><strong>Multi-model diversity reduces bias.</strong> Using the same model for every step reinforces blind spots. Splitting planning and critique across different models adds beneficial variability \u2014 they have complementary failure modes with less overlap.</li>
+        <li><strong>Critique must flag, not rationalise.</strong> Early versions let the critique model explain away concerns ("this diverges from the hint but seems fine"). We fixed this by telling the model to flag any difference or tension, even if it seems justified \u2014 the gate decides what's acceptable, not the critic.</li>
+        <li><strong>Template files over freeform JSON.</strong> MiniMax-M2.7 had a 75% failure rate when asked to produce structured JSON as a final text response. Writing a template file to disk and having the model fill it in via tool calls dropped that to near zero.</li>
+        <li><strong>Parallel critique checks.</strong> Each critique check (correctness, scope, callers, verification, etc.) runs as an independent parallel call. This is both faster and produces better results than a single monolithic review, since each check gets focused attention.</li>
+        <li><strong>The gate must be sovereign.</strong> We discovered the orchestrator was overriding the gate's PROCEED decision when blocking flags remained, forcing infinite critique\u2192revise loops. The fix: if the gate says PROCEED after seeing all flags, respect that decision. Remaining flags become accepted tradeoffs.</li>
+        <li><strong>Gating prevents rubber-stamping.</strong> The gate mechanism (proceed vs. iterate vs. escalate) is essential. Without it, models approve their own plans uncritically.</li>
+    </ul>
 </div>
 
 <!-- Footer -->
