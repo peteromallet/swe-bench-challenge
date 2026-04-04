@@ -54,7 +54,7 @@
     /* Chart */
     .chart-section { max-width: 800px; margin: 1.5rem auto 0; padding: 0 1rem; }
     .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
-    .chart-header h3 { font-size: 0.75rem; color: #404040; text-transform: uppercase; letter-spacing: 0.05em; }
+    .chart-header h3 { font-size: 0.75rem; color: #737373; text-transform: uppercase; letter-spacing: 0.05em; }
     .zoom-btns { display: flex; gap: 4px; }
     .zoom-btn { background: #111; border: 1px solid #222; color: #666; font-size: 0.6rem; padding: 3px 10px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
     .zoom-btn:hover { background: #1a1a1a; color: #999; }
@@ -330,9 +330,9 @@ function renderDashboard(data) {
     <div class="chart-header">
         <h3>Score progression (${data.total_scored} / ${data.total_target} tasks)</h3>
         <div class="zoom-btns">
-            <button class="zoom-btn active" onclick="setZoom(500)">All (500)</button>
+            <button class="zoom-btn" onclick="setZoom(0)">All</button>
             <button class="zoom-btn" onclick="setZoom(100)">Last 100</button>
-            <button class="zoom-btn" onclick="setZoom(50)">Last 50</button>
+            <button class="zoom-btn active" onclick="setZoom(50)">Last 50</button>
             <button class="zoom-btn" onclick="setZoom(20)">Last 20</button>
         </div>
     </div>
@@ -405,7 +405,7 @@ function renderDashboard(data) {
     DATA = data.progression;
     TARGET = data.total_target;
     THEIR_SCORE = theirScore;
-    currentZoom = 500;
+    currentZoom = 50;
     drawChart();
     setupTooltip();
     window.addEventListener('resize', drawChart);
@@ -563,10 +563,16 @@ function drawChart() {
 
     let visData = DATA;
     let xMin = 0, xMax = TARGET;
-    if (currentZoom < TARGET && DATA.length > 0) {
+    if (DATA.length > 0) {
         const lastN = DATA[DATA.length - 1].n;
-        xMin = Math.max(0, lastN - currentZoom);
-        xMax = Math.max(lastN, currentZoom);
+        if (currentZoom === 0) {
+            // "All" — fit to actual data range with a little padding
+            xMin = 0;
+            xMax = Math.max(lastN + Math.ceil(lastN * 0.1), 10);
+        } else {
+            xMin = Math.max(0, lastN - currentZoom);
+            xMax = Math.max(lastN + 2, currentZoom);
+        }
         visData = DATA.filter(d => d.n > xMin);
     }
 
