@@ -1014,22 +1014,76 @@ function renderDashboard(data) {
     </ul>
 </div>
 
-<div style="margin:1.5rem 0 0.5rem;padding:0.75rem 1rem;background:#f0f9ff;border:1px solid #bae6fd;border-radius:0.5rem;font-size:0.85rem;color:#0c4a6e;">
-    <strong>Full execution traces</strong> &mdash; Untruncated model conversations for every scored task (all phases, tool calls, and outputs) are available as <a href="https://github.com/peteromallet/swe-bench-challenge/releases/tag/v0.1-traces" style="color:#2563eb;">GitHub Release assets</a>. Download individual tasks or the full 13MB bundle.
+<!-- Verify & Reproduce -->
+<div class="section-wrap">
+    <h2 class="section-heading">Verify &amp; Reproduce</h2>
+    <div style="display:flex; gap:2rem; max-width:750px; margin:0 auto; flex-wrap:wrap;">
+        <div style="flex:1; min-width:300px;">
+            <h3 style="font-family:Georgia,serif; font-size:1.05rem; font-weight:400; color:#111; margin-bottom:0.5rem;">Verify any task</h3>
+            <pre style="padding:0.75rem; background:#f8f8f8; border:1px solid #e5e5e5; border-radius:4px; font-size:0.75rem; line-height:1.5; overflow-x:auto; color:#333;">
+<span style="color:#888"># Download a full execution trace</span>
+curl -L https://github.com/peteromallet/\\
+swe-bench-challenge/releases/download/\\
+v0.1-traces/django__django-11848.json.gz \\
+| gunzip | python -m json.tool
+
+<span style="color:#888"># Score our patch against official tests</span>
+pip install swebench
+python -m swebench.harness.run_evaluation \\
+  --predictions_path predictions.jsonl \\
+  --swe_bench_tasks \\
+    princeton-nlp/SWE-bench_Verified \\
+  --run_id verify
+
+<span style="color:#888"># Compare against the golden patch</span>
+python -c "
+from datasets import load_dataset
+ds = load_dataset(
+  'princeton-nlp/SWE-bench_Verified',
+  split='test')
+g = {i['instance_id']: i['patch'] for i in ds}
+print(g['django__django-11848'])
+"</pre>
+        </div>
+        <div style="flex:1; min-width:300px;">
+            <h3 style="font-family:Georgia,serif; font-size:1.05rem; font-weight:400; color:#111; margin-bottom:0.5rem;">Rerun this yourself</h3>
+            <p class="body-text" style="font-size:0.85rem;">Copy and give this to your agent:</p>
+            <pre style="padding:0.75rem; background:#f8f8f8; border:1px solid #e5e5e5; border-radius:4px; font-size:0.75rem; line-height:1.5; overflow-x:auto; color:#333;">
+<span style="color:#888"># Install and clone</span>
+pip install megaplan-harness hermes-agent
+git clone https://github.com/\\
+  peteromallet/hermes-megaplan.git
+cd hermes-megaplan
+
+<span style="color:#888"># Set up API key</span>
+mkdir -p ~/.hermes
+echo "OPENROUTER_API_KEY=sk-or-v1-..." \\
+  > ~/.hermes/.env
+
+<span style="color:#888"># Run all 500 tasks</span>
+python -m auto_improve.run_experiment \\
+  --iteration 001 --workers 3 --tasks 500
+
+<span style="color:#888"># Monitor and score</span>
+python -m auto_improve.check_scores
+python -m auto_improve.score \\
+  --watch --iterations 001</pre>
+            <p class="body-text" style="font-size:0.75rem; color:#888; margin-top:0.5rem;">
+                For our exact setup, add <code>ZHIPU_API_KEY</code> + <code>MINIMAX_API_KEY</code> to
+                <code>~/.hermes/.env</code>. See <a href="https://github.com/peteromallet/hermes-megaplan/blob/main/auto_improve/README.md">full docs</a>.
+            </p>
+        </div>
+    </div>
 </div>
 
-<!-- Full Execution Traces -->
-<div class="page-footer" style="border-top:none; padding-top:0;">
+<!-- Traces + Footer -->
+<div class="page-footer">
     <p style="font-size:0.85rem; color:#555; max-width:600px; margin:0 auto 1.5rem; line-height:1.6;">
         <strong>Full execution traces</strong> \u2014 Untruncated model conversations for every scored task
         (all phases, tool calls, and outputs) are available as
         <a href="https://github.com/peteromallet/swe-bench-challenge/releases/tag/v0.1-traces">GitHub Release assets</a>.
         Download individual tasks or the full 13MB bundle.
     </p>
-</div>
-
-<!-- Footer -->
-<div class="page-footer">
     <div class="footer-contact">
         Questions or critiques?
         <a href="https://x.com/peterom">@peterom</a> &middot;
@@ -1041,50 +1095,6 @@ function renderDashboard(data) {
         <a href="https://www.swebench.com">SWE-bench</a>
     </div>
     <div class="footer-updated">Last updated: ${genAt}</div>
-</div>
-
-<!-- Reproduction -->
-<div class="section-wrap" style="margin-top:2rem;">
-    <h2 class="section-heading">Verify Our Results</h2>
-    <p class="body-text">
-        Every result on this page can be independently verified. Here's how to check a single task:
-    </p>
-    <h3 style="font-family:Georgia,serif; font-size:1.1rem; font-weight:400; color:#111; text-align:center; margin:1.5rem 0 0.75rem;">Rerun This Yourself</h3>
-    <p class="body-text">
-        Copy and give this to your agent to replicate the full 500-task experiment from scratch:
-    </p>
-    <pre style="max-width:680px; margin:1rem auto; padding:1rem; background:#f8f8f8; border:1px solid #e5e5e5; border-radius:4px; font-size:0.8rem; line-height:1.6; overflow-x:auto; color:#333;">
-<span style="color:#888"># Install the harness and agent backend</span>
-pip install megaplan-harness hermes-agent
-
-<span style="color:#888"># Clone the experiment orchestration code</span>
-git clone https://github.com/peteromallet/hermes-megaplan.git
-cd hermes-megaplan
-
-<span style="color:#888"># Set up API keys</span>
-mkdir -p ~/.hermes
-cat > ~/.hermes/.env << 'EOF'
-OPENROUTER_API_KEY=sk-or-v1-your-key-here
-EOF
-
-<span style="color:#888"># Run the full 500-task SWE-bench Verified experiment</span>
-<span style="color:#888"># (uses OpenRouter by default — any model works)</span>
-python -m auto_improve.run_experiment \\
-    --iteration 001 \\
-    --workers 3 \\
-    --tasks 500
-
-<span style="color:#888"># Monitor progress</span>
-python -m auto_improve.check_scores
-
-<span style="color:#888"># Score predictions against the official test suite</span>
-python -m auto_improve.score --watch --iterations 001</pre>
-    <p class="body-text" style="font-size:0.85rem; color:#888;">
-        To replicate our exact setup (GLM-5.1 + MiniMax-M2.7), add <code>ZHIPU_API_KEY</code> and
-        <code>MINIMAX_API_KEY</code> to <code>~/.hermes/.env</code> and update <code>auto_improve/base_config.json</code>
-        with the model configuration shown in the <a href="#methodology">Methodology</a> section.
-        See the <a href="https://github.com/peteromallet/hermes-megaplan/blob/main/auto_improve/README.md">full documentation</a> for details.
-    </p>
 </div>
 `;
 
