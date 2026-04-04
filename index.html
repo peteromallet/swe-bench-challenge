@@ -60,10 +60,16 @@
         margin-bottom: 0.25rem;
     }
     .abstract p {
-        font-style: italic;
         font-size: 0.95rem;
         color: #444;
         line-height: 1.8;
+    }
+    .abstract a {
+        color: #2563eb;
+        text-decoration: none;
+    }
+    .abstract a:hover {
+        text-decoration: underline;
     }
 
     /* Sections */
@@ -532,17 +538,15 @@ function renderDashboard(data) {
         <a href="https://x.com/peteromallet">Peter O'Malley</a>
     </div>
     <div class="abstract">
-        <div class="abstract-label">Abstract</div>
         <p>
-            We investigate whether structured planning harnesses can close the performance gap between
-            open-weight and closed-source models on SWE-bench Verified, a benchmark of real-world GitHub issues.
-            Our approach uses Megaplan, a general-purpose planning and execution harness featuring structured
-            critique and gating mechanisms. Two open-weight models collaborate: GLM-5.1 handles planning
-            and execution, while MiniMax-M2.7 provides independent critique and review. Crucially, the
-            harness is deliberately generalised \u2014 we specifically avoided any adaptations to SWE-bench
-            or the problems being solved. Preliminary results suggest that structured multi-model
-            orchestration can meaningfully close the gap with frontier closed-source systems.
-            All code is open source.
+            Can open-weight models compete with frontier closed-source systems on real-world coding tasks?
+            We're testing this with <a href="https://github.com/peteromallet/megaplan">Megaplan</a>, a
+            general-purpose planning harness that pairs two open models:
+            <a href="https://open.bigmodel.cn">GLM-5.1</a> for planning and execution, and
+            <a href="https://www.minimax.io">MiniMax-M2.7</a> for independent critique and review.
+            Nothing in the harness is SWE-bench-specific \u2014 the same pipeline could be pointed at
+            any multi-step coding task. Early results suggest that structured multi-model orchestration
+            closes a surprising amount of the gap. All code is open source.
         </p>
     </div>
 </div>
@@ -577,10 +581,12 @@ function renderDashboard(data) {
 
     <h2 class="section-heading">Key Findings</h2>
     <ul class="body-list">
-        <li><strong>Multi-model diversity reduces bias.</strong> Using the same model for every step reinforces biases; different models for different steps adds beneficial variability.</li>
-        <li><strong>Complementary failure modes.</strong> Different models have different characteristics with less overlap \u2014 a planning model and a critique model catch different failure modes.</li>
-        <li><strong>Independent critique avoids self-confirmation.</strong> Structured critique with an independent model prevents the planning model from rubber-stamping its own reasoning.</li>
-        <li><strong>Gating is critical.</strong> The gate mechanism (proceed vs. iterate) is essential \u2014 without it, models approve their own plans uncritically.</li>
+        <li><strong>Multi-model diversity reduces bias.</strong> Using the same model for every step reinforces blind spots. Splitting planning and critique across different models adds beneficial variability \u2014 they have complementary failure modes with less overlap.</li>
+        <li><strong>Critique must flag, not rationalise.</strong> Early versions let the critique model explain away concerns ("this diverges from the hint but seems fine"). We fixed this by telling the model to flag any difference or tension, even if it seems justified \u2014 the gate decides what's acceptable, not the critic.</li>
+        <li><strong>Template files over freeform JSON.</strong> MiniMax-M2.7 had a 75% failure rate when asked to produce structured JSON as a final text response. Writing a template file to disk and having the model fill it in via tool calls dropped that to near zero \u2014 models that can explore codebases and edit files often can't reliably emit raw JSON.</li>
+        <li><strong>Parallel critique checks.</strong> Each critique check (correctness, scope, callers, verification, etc.) runs as an independent parallel call. This is both faster and produces better results than a single monolithic review, since each check gets focused attention.</li>
+        <li><strong>The gate must be sovereign.</strong> We discovered the orchestrator was overriding the gate's PROCEED decision when blocking flags remained, forcing infinite critique\u2192revise loops. The fix: if the gate says PROCEED after seeing all flags, respect that decision. Remaining flags become accepted tradeoffs.</li>
+        <li><strong>Gating prevents rubber-stamping.</strong> The gate mechanism (proceed vs. iterate vs. escalate) is essential. Without it, models approve their own plans uncritically.</li>
     </ul>
 </div>
 
@@ -664,9 +670,8 @@ function renderDashboard(data) {
     </div>
 </div>
 
-<!-- How Megaplan Works -->
+<!-- Pipeline (part of Methodology) -->
 <div class="section-wrap">
-    <h2 class="section-heading">How Megaplan Works</h2>
     <p class="body-text" style="text-align:center">
         Each task goes through a structured pipeline with two models working together.
         <strong>${esc(executeModel)}</strong> handles reasoning and code execution, while
