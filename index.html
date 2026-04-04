@@ -3,49 +3,210 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Open Source vs Closed Source — SWE-bench Verified</title>
+<title>Can open-source models beat Opus on SWE-bench?</title>
 <meta http-equiv="refresh" content="300">
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1a1a1a; font-size: 16px; line-height: 1.6; }
 
-    .hero { padding: 3.5rem 2rem 2.5rem; text-align: center; max-width: 750px; margin: 0 auto; }
-    .hero-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #888; margin-bottom: 0.75rem; }
-    .hero-title { font-size: 1.75rem; font-weight: 400; color: #1a1a1a; margin-bottom: 0.75rem; line-height: 1.35; }
-    .hero-title strong { font-weight: 700; }
-    .hero-sub { font-size: 0.95rem; color: #555; max-width: 650px; margin: 0.5rem auto 1rem; line-height: 1.7; }
-    .hero-sub strong { color: #1a1a1a; font-weight: 600; }
-    .hero-sub a { color: #2563eb; text-decoration: none; }
-    .hero-sub a:hover { text-decoration: underline; }
+    body {
+        font-family: 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        background: #fff;
+        color: #333;
+        font-size: 17px;
+        line-height: 1.7;
+    }
 
-    .versus { display: flex; justify-content: center; align-items: stretch; gap: 1.5rem; flex-wrap: wrap; padding: 1.5rem 0; max-width: 750px; margin: 0 auto; }
-    .side { flex: 1; min-width: 260px; max-width: 340px; padding: 1.5rem; border-radius: 4px; text-align: center; border: 1px solid #e0e0e0; background: #fafafa; }
-    .side-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; color: #555; }
+    /* Academic page layout */
+    .page-header {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 4rem 1.5rem 2rem;
+        text-align: center;
+    }
+
+    .page-title {
+        font-family: Georgia, 'Times New Roman', Times, serif;
+        font-size: 2.2rem;
+        font-weight: 400;
+        color: #111;
+        line-height: 1.3;
+        max-width: 700px;
+        margin: 0 auto 1.5rem;
+    }
+
+    .authors {
+        font-size: 1.05rem;
+        color: #333;
+        margin-bottom: 2rem;
+    }
+    .authors a {
+        color: #2563eb;
+        text-decoration: none;
+    }
+    .authors a:hover {
+        text-decoration: underline;
+    }
+
+    .abstract {
+        max-width: 680px;
+        margin: 0 auto 2.5rem;
+        text-align: left;
+    }
+    .abstract-label {
+        font-family: Georgia, 'Times New Roman', Times, serif;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #111;
+        margin-bottom: 0.25rem;
+    }
+    .abstract p {
+        font-style: italic;
+        font-size: 0.95rem;
+        color: #444;
+        line-height: 1.8;
+    }
+
+    /* Sections */
+    .section-wrap {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+    }
+
+    .section-heading {
+        font-family: Georgia, 'Times New Roman', Times, serif;
+        font-size: 1.5rem;
+        font-weight: 400;
+        color: #111;
+        text-align: center;
+        margin: 3rem 0 1.25rem;
+    }
+
+    .section-subheading {
+        font-family: Georgia, 'Times New Roman', Times, serif;
+        font-size: 1.15rem;
+        font-weight: 400;
+        color: #111;
+        margin: 2rem 0 0.75rem;
+    }
+
+    .body-text {
+        max-width: 680px;
+        margin: 0 auto;
+        font-size: 0.95rem;
+        color: #444;
+        line-height: 1.8;
+        margin-bottom: 1rem;
+    }
+    .body-text a {
+        color: #2563eb;
+        text-decoration: none;
+    }
+    .body-text a:hover {
+        text-decoration: underline;
+    }
+    .body-text strong {
+        color: #222;
+        font-weight: 600;
+    }
+
+    .body-list {
+        max-width: 680px;
+        margin: 0 auto 1.5rem;
+        padding-left: 1.5rem;
+        font-size: 0.95rem;
+        color: #444;
+        line-height: 1.8;
+    }
+    .body-list li {
+        margin-bottom: 0.5rem;
+    }
+    .body-list strong {
+        color: #222;
+        font-weight: 600;
+    }
+
+    /* Versus comparison */
+    .versus {
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        gap: 2rem;
+        flex-wrap: wrap;
+        max-width: 680px;
+        margin: 1.5rem auto 1rem;
+    }
+    .side {
+        flex: 1;
+        min-width: 240px;
+        max-width: 320px;
+        text-align: center;
+        padding: 1.25rem;
+    }
+    .side-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-bottom: 0.4rem;
+        color: #666;
+    }
     .side-open .side-label { color: #16a34a; }
     .side-closed .side-label { color: #6366f1; }
-    .side-models { font-size: 0.8rem; color: #888; margin-bottom: 0.75rem; line-height: 1.5; }
-    .side-score { font-size: 3rem; font-weight: 800; line-height: 1; }
-    .side-detail { font-size: 0.85rem; color: #666; margin-top: 0.25rem; }
-    .side-progress { font-size: 0.75rem; color: #999; margin-top: 0.4rem; }
-    .side-progress a { color: #2563eb; text-decoration: none; }
-    .side-progress a:hover { text-decoration: underline; }
-    .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #16a34a; margin-right: 4px; animation: pulse 2s infinite; }
+    .side-models {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 0.6rem;
+        line-height: 1.5;
+    }
+    .side-score {
+        font-size: 2.8rem;
+        font-weight: 800;
+        line-height: 1;
+        font-family: Georgia, 'Times New Roman', Times, serif;
+    }
+    .side-detail {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: 0.25rem;
+    }
+    .side-progress {
+        font-size: 0.75rem;
+        color: #999;
+        margin-top: 0.3rem;
+    }
+    .side-progress a {
+        color: #2563eb;
+        text-decoration: none;
+    }
+    .side-progress a:hover {
+        text-decoration: underline;
+    }
+    .live-dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #16a34a;
+        margin-right: 4px;
+        animation: pulse 2s infinite;
+    }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-    /* Section layout */
-    .section-divider { padding: 2.5rem 1rem; max-width: 750px; margin: 0 auto; }
-    hr.section-rule { border: none; border-top: 1px solid #e5e5e5; max-width: 750px; margin: 0 auto; }
-    .section-title { font-size: 1.1rem; font-weight: 600; color: #1a1a1a; letter-spacing: 0.02em; margin-bottom: 1rem; text-align: center; }
-
-    /* Probability section */
-    .prob-section { max-width: 750px; margin: 0 auto; padding: 0; text-align: center; }
-    .prob-section h3 { font-size: 1.1rem; color: #1a1a1a; font-weight: 600; letter-spacing: 0.02em; margin-bottom: 0.75rem; }
-    .prob-big { font-size: 3rem; font-weight: 800; line-height: 1; margin-bottom: 0.25rem; }
+    /* Probability */
+    .prob-section { max-width: 680px; margin: 0 auto; text-align: center; }
+    .prob-section h3 {
+        font-family: Georgia, 'Times New Roman', Times, serif;
+        font-size: 1.1rem;
+        color: #111;
+        font-weight: 400;
+        margin-bottom: 0.75rem;
+    }
+    .prob-big { font-size: 2.8rem; font-weight: 800; line-height: 1; margin-bottom: 0.25rem; font-family: Georgia, serif; }
     .prob-label { font-size: 0.85rem; color: #888; margin-bottom: 1rem; }
     .prob-bar-wrap { max-width: 500px; margin: 0 auto 0.5rem; }
-    .prob-bar-bg { height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden; position: relative; border: 1px solid #e0e0e0; }
-    .prob-bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
-    .prob-ranges { display: flex; justify-content: center; gap: 2rem; margin-top: 1rem; flex-wrap: wrap; }
+    .prob-bar-bg { height: 16px; background: #f5f5f5; border-radius: 8px; overflow: hidden; }
+    .prob-bar-fill { height: 100%; border-radius: 8px; transition: width 0.5s ease; }
+    .prob-ranges { display: flex; justify-content: center; gap: 2.5rem; margin-top: 1rem; flex-wrap: wrap; }
     .prob-range { text-align: center; }
     .prob-range-val { font-size: 1.2rem; font-weight: 700; }
     .prob-range-label { font-size: 0.7rem; color: #999; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -56,41 +217,59 @@
     .prob-method { cursor: pointer; margin-top: 1rem; }
     .prob-method-toggle { font-size: 0.8rem; color: #999; }
     .prob-method-toggle:hover { color: #555; }
-    .prob-method-body { display: none; font-size: 0.85rem; color: #555; line-height: 1.7; max-width: 500px; margin: 0.75rem auto 0; text-align: left; padding: 1rem; background: #fafafa; border-radius: 4px; border: 1px solid #e5e5e5; }
+    .prob-method-body { display: none; font-size: 0.85rem; color: #555; line-height: 1.7; max-width: 500px; margin: 0.75rem auto 0; text-align: left; padding: 1rem; background: #fafafa; border-radius: 4px; }
     .prob-method-body.show { display: block; }
     .prob-method-body strong { color: #1a1a1a; }
 
     /* Chart */
-    .chart-section { max-width: 750px; margin: 0 auto; padding: 0; }
+    .chart-section { max-width: 680px; margin: 0 auto; }
     .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
-    .chart-header h3 { font-size: 0.95rem; color: #1a1a1a; font-weight: 600; }
+    .chart-header h3 { font-size: 0.9rem; color: #333; font-weight: 600; }
     .zoom-btns { display: flex; gap: 4px; }
-    .zoom-btn { background: #fff; border: 1px solid #d0d0d0; color: #666; font-size: 0.75rem; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .zoom-btn { background: #fff; border: 1px solid #d0d0d0; color: #666; font-size: 0.75rem; padding: 3px 10px; border-radius: 3px; cursor: pointer; transition: all 0.15s; }
     .zoom-btn:hover { background: #f5f5f5; color: #333; }
-    .zoom-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-    .chart-wrap { position: relative; border: 1px solid #e5e5e5; border-radius: 4px; overflow: hidden; }
+    .zoom-btn.active { background: #333; color: #fff; border-color: #333; }
+    .chart-wrap { position: relative; overflow: hidden; }
     .chart-wrap canvas { width: 100%; height: 240px; }
     .chart-tooltip { position: absolute; display: none; background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; padding: 6px 10px; font-size: 0.75rem; color: #1a1a1a; pointer-events: none; z-index: 10; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .figure-caption {
+        text-align: center;
+        font-size: 0.8rem;
+        color: #888;
+        margin-top: 0.5rem;
+        font-style: italic;
+    }
 
     /* Stats bar */
-    .stats-bar { display: flex; justify-content: center; gap: 2rem; padding: 1.5rem 0; flex-wrap: wrap; max-width: 750px; margin: 0 auto; }
-    .stat { text-align: center; min-width: 60px; }
-    .stat-value { font-size: 1.3rem; font-weight: 700; color: #1a1a1a; }
-    .stat-label { font-size: 0.7rem; color: #999; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stats-bar { display: flex; justify-content: center; gap: 2rem; padding: 1rem 0; flex-wrap: wrap; max-width: 680px; margin: 0 auto; }
+    .stat { text-align: center; min-width: 55px; }
+    .stat-value { font-size: 1.2rem; font-weight: 700; color: #111; }
+    .stat-label { font-size: 0.65rem; color: #999; text-transform: uppercase; letter-spacing: 0.05em; }
 
-    /* Two-column layout for repo + feed */
-    .mid-section { display: flex; gap: 1.5rem; max-width: 750px; margin: 1rem auto 0; padding: 0; flex-wrap: wrap; }
-    .mid-col { flex: 1; min-width: 300px; }
-    .mid-col h3 { font-size: 0.85rem; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    /* Pipeline */
+    .pipeline { display: flex; align-items: stretch; justify-content: center; gap: 0; flex-wrap: wrap; margin: 0.75rem auto; max-width: 680px; }
+    .pipe-step { flex: 1; min-width: 130px; max-width: 170px; padding: 0.85rem 0.65rem; background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; text-align: center; }
+    .pipe-step-alt { border-color: #c4b5fd; background: #faf5ff; }
+    .pipe-step-score { border-color: #86efac; background: #f0fdf4; }
+    .pipe-icon { font-size: 1.4rem; margin-bottom: 0.3rem; }
+    .pipe-name { font-size: 0.9rem; font-weight: 700; color: #111; margin-bottom: 0.15rem; }
+    .pipe-model { font-size: 0.7rem; color: #888; margin-bottom: 0.3rem; font-family: monospace; }
+    .pipe-step-alt .pipe-model { color: #7c3aed; }
+    .pipe-desc { font-size: 0.75rem; color: #666; line-height: 1.5; }
+    .pipe-arrow { display: flex; align-items: center; color: #ccc; font-size: 1.2rem; padding: 0 0.3rem; }
+    .pipe-loop-label { text-align: center; font-size: 0.85rem; color: #888; margin: 0.75rem 0; font-style: italic; }
 
     /* Repo breakdown */
+    .mid-section { display: flex; gap: 1.5rem; max-width: 680px; margin: 1rem auto 0; flex-wrap: wrap; }
+    .mid-col { flex: 1; min-width: 280px; }
+    .mid-col h3 { font-size: 0.8rem; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
     .repo-row { display: flex; align-items: center; gap: 0.5rem; padding: 3px 0; }
     .repo-name { font-size: 0.8rem; color: #555; font-family: monospace; min-width: 80px; }
     .repo-bar-wrap { flex: 1; height: 10px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
     .repo-bar { height: 100%; border-radius: 3px; transition: width 0.3s; }
     .repo-stat { font-size: 0.75rem; color: #888; min-width: 70px; text-align: right; }
 
-    /* Activity feed */
+    /* Feed */
     .feed-row { display: flex; align-items: center; gap: 0.5rem; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
     .feed-icon { font-size: 0.8rem; width: 1rem; }
     .feed-row.pass .feed-icon { color: #16a34a; }
@@ -99,9 +278,10 @@
     .feed-time { font-size: 0.7rem; color: #999; }
     .feed-ago { font-size: 0.7rem; color: #bbb; min-width: 50px; text-align: right; }
 
-    .content { max-width: 750px; margin: 0 auto; padding: 1.5rem 0; }
-    .section { margin-top: 1.5rem; }
-    .section h3 { font-size: 0.95rem; color: #1a1a1a; font-weight: 600; margin-bottom: 0.5rem; }
+    /* Task list */
+    .content { max-width: 680px; margin: 0 auto; }
+    .section { margin-top: 1rem; }
+    .section h3 { font-size: 0.9rem; color: #111; font-weight: 600; margin-bottom: 0.5rem; }
     .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
 
     .task-row { padding: 0.5rem 0.5rem; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background 0.15s; }
@@ -141,30 +321,42 @@
     .phase-execute { background: #86efac; }
     .phase-review { background: #fef08a; }
 
-    /* How it works */
-    .how-section { max-width: 750px; margin: 0 auto; padding: 0; }
-    .how-section h3 { font-size: 1.1rem; color: #1a1a1a; font-weight: 600; letter-spacing: 0.02em; margin-bottom: 1rem; text-align: center; }
-    .how-section h3 a { color: #1a1a1a; text-decoration: none; border-bottom: 1px dashed #999; }
-    .how-section h3 a:hover { border-bottom-color: #555; }
-    .how-intro { font-size: 0.95rem; color: #555; text-align: center; max-width: 600px; margin: 0 auto 1.5rem; line-height: 1.7; }
-    .how-intro strong { color: #1a1a1a; }
-    .pipeline { display: flex; align-items: stretch; justify-content: center; gap: 0; flex-wrap: wrap; margin: 0.75rem 0; }
-    .pipe-step { flex: 1; min-width: 140px; max-width: 180px; padding: 1rem 0.75rem; background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; text-align: center; }
-    .pipe-step-alt { border-color: #c4b5fd; background: #faf5ff; }
-    .pipe-step-score { border-color: #86efac; background: #f0fdf4; }
-    .pipe-icon { font-size: 1.5rem; margin-bottom: 0.4rem; }
-    .pipe-name { font-size: 0.95rem; font-weight: 700; color: #1a1a1a; margin-bottom: 0.2rem; }
-    .pipe-model { font-size: 0.75rem; color: #888; margin-bottom: 0.4rem; font-family: monospace; }
-    .pipe-step-alt .pipe-model { color: #7c3aed; }
-    .pipe-desc { font-size: 0.8rem; color: #666; line-height: 1.5; }
-    .pipe-arrow { display: flex; align-items: center; color: #ccc; font-size: 1.3rem; padding: 0 0.35rem; }
-    .pipe-loop-label { text-align: center; font-size: 0.85rem; color: #888; margin: 0.75rem 0; font-style: italic; }
-    .how-footer { font-size: 0.95rem; color: #555; text-align: center; max-width: 600px; margin: 1.25rem auto 0; line-height: 1.7; }
-    .how-footer strong { color: #1a1a1a; }
-
-    .footer { text-align: center; padding: 2.5rem 1rem; font-size: 0.75rem; color: #bbb; border-top: 1px solid #e5e5e5; max-width: 750px; margin: 1rem auto 0; }
-    .footer a { color: #999; text-decoration: none; }
-    .footer a:hover { text-decoration: underline; }
+    /* Footer */
+    .page-footer {
+        max-width: 800px;
+        margin: 4rem auto 0;
+        padding: 2rem 1.5rem 3rem;
+        text-align: center;
+        font-size: 0.85rem;
+        color: #888;
+    }
+    .page-footer a {
+        color: #2563eb;
+        text-decoration: none;
+    }
+    .page-footer a:hover {
+        text-decoration: underline;
+    }
+    .page-footer .footer-contact {
+        margin-bottom: 0.75rem;
+        font-size: 0.9rem;
+        color: #555;
+    }
+    .page-footer .footer-links {
+        font-size: 0.8rem;
+        color: #999;
+    }
+    .page-footer .footer-links a {
+        color: #999;
+    }
+    .page-footer .footer-links a:hover {
+        color: #555;
+    }
+    .page-footer .footer-updated {
+        margin-top: 0.75rem;
+        font-size: 0.7rem;
+        color: #bbb;
+    }
 
     .loading { text-align: center; padding: 4rem; color: #999; font-size: 0.9rem; }
 </style>
@@ -319,103 +511,137 @@ function renderDashboard(data) {
     const genAt = data.generated_at ? data.generated_at.substring(0, 19) + 'Z' : '';
 
     document.getElementById('app').innerHTML = `
-<div class="hero">
-    <div class="hero-label"><span class="live-dot"></span> Live Experiment</div>
-    <div class="hero-title">Can <strong>open-source models</strong> beat Opus on SWE-bench<br>using a generalised planning/execution harness?</div>
-    <div class="hero-sub">
-        <a href="https://github.com/peteromallet/megaplan">Megaplan</a> is a general-purpose planning harness that helps LLMs
-        execute complex tasks through structured phases. The experiments are orchestrated by
-        <a href="https://github.com/peteromallet/hermes-megaplan">hermes-megaplan</a>, a fork of <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a>
-        with automated SWE-bench evaluation tooling.
-        Here, two open-weight models \u2014 <strong>${esc(executeModel)}</strong> (execution &amp; planning) and
-        <strong>${esc(critiqueModel)}</strong> (critique &amp; review) \u2014 are working together through Megaplan
-        to solve real GitHub issues from the <a href="https://www.swebench.com">SWE-bench Verified</a> benchmark.
-        Our goal: beat <strong>Claude Opus 4.5</strong>, the best-ranked Claude model, at this benchmark.
-        You can follow the progress live \u2014 all code and data is open source.
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">Can open-source models beat Opus on SWE-bench using a generalised planning/execution harness?</h1>
+    <div class="authors">
+        <a href="https://x.com/peteromallet">Peter O'Malley</a>
+    </div>
+    <div class="abstract">
+        <div class="abstract-label">Abstract</div>
+        <p>
+            We investigate whether structured planning harnesses can close the performance gap between
+            open-weight and closed-source models on SWE-bench Verified, a benchmark of real-world GitHub issues.
+            Our approach uses Megaplan, a general-purpose planning and execution harness featuring structured
+            critique and gating mechanisms. Two open-weight models collaborate: GLM-5.1 handles planning
+            and execution, while MiniMax-M2.7 provides independent critique and review. Crucially, the
+            harness is deliberately generalised \u2014 we specifically avoided any adaptations to SWE-bench
+            or the problems being solved. Preliminary results suggest that structured multi-model
+            orchestration can meaningfully close the gap with frontier closed-source systems.
+            All code is open source.
+        </p>
     </div>
 </div>
 
-<div class="versus">
-    <div class="side side-open">
-        <div class="side-label"><span class="live-dot"></span> Open Source + Megaplan</div>
-        <div class="side-models">${esc(executeModel)} + ${esc(critiqueModel)}<br>${esc(String(data.robustness))} robustness</div>
-        <div class="side-score" style="color:${winning ? '#16a34a' : '#555'}">${ourScore.toFixed(1)}%</div>
-        <div class="side-detail">${data.passed}/${data.total_scored} resolved</div>
-        <div class="side-progress">${data.total_scored} of ${data.total_target} tasks &middot; live results</div>
-    </div>
+<!-- Methodology -->
+<div class="section-wrap">
+    <h2 class="section-heading">Methodology</h2>
+    <p class="body-text">
+        The harness was developed through a recursive improvement loop on random samples of SWE-bench tasks.
+        A human was in the loop at each pivot point, improving both the orchestration process and the prompts
+        based on observed failure modes. The explicit goal was generalisability: nothing SWE-bench-specific
+        was added to the system. The same harness could, in principle, be pointed at any task requiring
+        multi-step code reasoning.
+    </p>
+    <p class="body-text">
+        All code is open source:
+        <a href="https://github.com/peteromallet/megaplan">Megaplan</a> (the planning harness) and
+        <a href="https://github.com/peteromallet/hermes-megaplan">hermes-megaplan</a> (SWE-bench orchestration).
+    </p>
 
-    <div class="side side-closed">
-        <div class="side-label">Closed Source</div>
-        <div class="side-models">${esc(cs.name)}<br>${esc(cs.variant)} &middot; ${esc(cs.cost_per_task)}/task</div>
-        <div class="side-score" style="color:${winning ? '#555' : '#6366f1'}">${theirScore}%</div>
-        <div class="side-detail">SWE-bench Verified</div>
-        <div class="side-progress">500 of 500 tasks &middot; <a href="https://www.swebench.com">benchmark</a></div>
-    </div>
+    <h2 class="section-heading">Key Findings</h2>
+    <ul class="body-list">
+        <li><strong>Multi-model diversity reduces bias.</strong> Using the same model for every step reinforces biases; different models for different steps adds beneficial variability.</li>
+        <li><strong>Complementary failure modes.</strong> Different models have different characteristics with less overlap \u2014 a planning model and a critique model catch different failure modes.</li>
+        <li><strong>Independent critique avoids self-confirmation.</strong> Structured critique with an independent model prevents the planning model from rubber-stamping its own reasoning.</li>
+        <li><strong>Gating is critical.</strong> The gate mechanism (proceed vs. iterate) is essential \u2014 without it, models approve their own plans uncritically.</li>
+    </ul>
 </div>
 
-<hr class="section-rule">
+<!-- Live Results -->
+<div class="section-wrap">
+    <h2 class="section-heading">Live Results</h2>
+    <div class="versus">
+        <div class="side side-open">
+            <div class="side-label"><span class="live-dot"></span> Open Source + Megaplan</div>
+            <div class="side-models">${esc(executeModel)} + ${esc(critiqueModel)}<br>${esc(String(data.robustness))} robustness</div>
+            <div class="side-score" style="color:${winning ? '#16a34a' : '#555'}">${ourScore.toFixed(1)}%</div>
+            <div class="side-detail">${data.passed}/${data.total_scored} resolved</div>
+            <div class="side-progress">${data.total_scored} of ${data.total_target} tasks</div>
+        </div>
 
-<div class="section-divider">
+        <div class="side side-closed">
+            <div class="side-label">Closed Source</div>
+            <div class="side-models">${esc(cs.name)}<br>${esc(cs.variant)} &middot; ${esc(cs.cost_per_task)}/task</div>
+            <div class="side-score" style="color:${winning ? '#555' : '#6366f1'}">${theirScore}%</div>
+            <div class="side-detail">SWE-bench Verified</div>
+            <div class="side-progress">500 of 500 tasks &middot; <a href="https://www.swebench.com">benchmark</a></div>
+        </div>
+    </div>
+
     <div class="prob-section" id="prob-section"></div>
 </div>
 
-<hr class="section-rule">
+<!-- Score Progression -->
+<div class="section-wrap">
+    <h2 class="section-heading">Score Progression</h2>
+    <div class="chart-section">
+        <div class="chart-header">
+            <h3>${data.total_scored} / ${data.total_target} tasks scored</h3>
+            <div class="zoom-btns">
+                <button class="zoom-btn" onclick="setZoom(0)">All</button>
+                <button class="zoom-btn" onclick="setZoom(100)">Last 100</button>
+                <button class="zoom-btn active" onclick="setZoom(50)">Last 50</button>
+                <button class="zoom-btn" onclick="setZoom(20)">Last 20</button>
+            </div>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="chart" width="760" height="240"></canvas>
+            <div class="chart-tooltip" id="tooltip"></div>
+        </div>
+        <div class="figure-caption">Figure 1: Cumulative pass rate over scored tasks. Dashed line indicates the Opus baseline.</div>
+    </div>
 
-<div class="section-divider">
-<div class="chart-section">
-    <div class="chart-header">
-        <h3>Score progression (${data.total_scored} / ${data.total_target} tasks)</h3>
-        <div class="zoom-btns">
-            <button class="zoom-btn" onclick="setZoom(0)">All</button>
-            <button class="zoom-btn" onclick="setZoom(100)">Last 100</button>
-            <button class="zoom-btn active" onclick="setZoom(50)">Last 50</button>
-            <button class="zoom-btn" onclick="setZoom(20)">Last 20</button>
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="stat-value">${data.streak >= 5 ? '\uD83D\uDD25 ' : ''}${data.streak}</div>
+            <div class="stat-label">streak</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${data.momentum_pct}%</div>
+            <div class="stat-label">last 5</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${data.tasks_per_hour}</div>
+            <div class="stat-label">tasks/hr</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${avgTimeStr}</div>
+            <div class="stat-label">avg time</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${data.manifest_claimed}</div>
+            <div class="stat-label">in flight</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${remaining}</div>
+            <div class="stat-label">remaining</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${etaStr}</div>
+            <div class="stat-label">ETA (last 5 pace)</div>
         </div>
     </div>
-    <div class="chart-wrap">
-        <canvas id="chart" width="760" height="240"></canvas>
-        <div class="chart-tooltip" id="tooltip"></div>
-    </div>
 </div>
 
-<div class="stats-bar">
-    <div class="stat">
-        <div class="stat-value">${data.streak >= 5 ? '\uD83D\uDD25 ' : ''}${data.streak}</div>
-        <div class="stat-label">streak</div>
-    </div>
-    <div class="stat">
-        <div class="stat-value">${data.momentum_pct}%</div>
-        <div class="stat-label">last 5</div>
-    </div>
-    <div class="stat">
-        <div class="stat-value">${data.tasks_per_hour}</div>
-        <div class="stat-label">tasks/hr</div>
-    </div>
-    <div class="stat">
-        <div class="stat-value">${avgTimeStr}</div>
-        <div class="stat-label">avg time</div>
-    </div>
-    <div class="stat">
-        <div class="stat-value">${data.manifest_claimed}</div>
-        <div class="stat-label">in flight</div>
-    </div>
-    <div class="stat">
-        <div class="stat-value">${remaining}</div>
-        <div class="stat-label">remaining</div>
-    </div>
-    <div class="stat">
-        <div class="stat-value">${etaStr}</div>
-        <div class="stat-label">ETA (last 5 pace)</div>
-    </div>
-</div>
-</div>
-
-<hr class="section-rule">
-
-<div class="section-divider">
-<div class="how-section">
-    <h3>How <a href="https://github.com/peteromallet/megaplan">Megaplan</a> works</h3>
-    <div class="how-intro">Each task goes through a structured pipeline with two models working together. <strong>${esc(executeModel)}</strong> handles reasoning and code execution, while <strong>${esc(critiqueModel)}</strong> provides independent critique and review.</div>
+<!-- How Megaplan Works -->
+<div class="section-wrap">
+    <h2 class="section-heading">How Megaplan Works</h2>
+    <p class="body-text" style="text-align:center">
+        Each task goes through a structured pipeline with two models working together.
+        <strong>${esc(executeModel)}</strong> handles reasoning and code execution, while
+        <strong>${esc(critiqueModel)}</strong> provides independent critique and review.
+    </p>
 
     <div class="pipeline">
         <div class="pipe-step">
@@ -471,37 +697,35 @@ function renderDashboard(data) {
             <div class="pipe-desc">Patch tested in Docker against the official test suite via Modal</div>
         </div>
     </div>
-
-    <div class="how-footer">
-        The key insight: using a <strong>separate model for critique</strong> avoids self-confirmation bias.
-        The planning model can't just approve its own work \u2014 an independent critic must be satisfied.
-        This is running at <strong>heavy</strong> robustness (8 critique checks per round).
-    </div>
-</div>
 </div>
 
-<hr class="section-rule">
-
-<div class="section-divider">
-<div class="content" style="padding-top:0">
-    <div class="section" style="margin-top:0">
-        <div class="section-header">
-            <h3>Tasks (${data.total_scored} scored \u2014 click to expand)</h3>
-            <button class="zoom-btn" onclick="toggleTaskSort()" id="sort-btn">Oldest first</button>
+<!-- Tasks -->
+<div class="section-wrap">
+    <h2 class="section-heading">Tasks</h2>
+    <div class="content" style="padding-top:0">
+        <div class="section" style="margin-top:0">
+            <div class="section-header">
+                <h3>${data.total_scored} scored \u2014 click to expand</h3>
+                <button class="zoom-btn" onclick="toggleTaskSort()" id="sort-btn">Oldest first</button>
+            </div>
+            <div id="task-list">${taskRows}</div>
         </div>
-        <div id="task-list">${taskRows}</div>
     </div>
-</div>
 </div>
 
-<div class="footer">
-    <a href="https://github.com/peteromallet/megaplan">Megaplan</a> &middot;
-    <a href="https://github.com/peteromallet/hermes-megaplan">hermes-megaplan</a> &middot;
-    <a href="https://www.swebench.com">SWE-bench</a>
-    <br><span style="font-size:0.7rem;color:#aaa">Last updated: ${genAt}</span>
-    <div style="margin-top:1rem;font-size:0.85rem;color:#666">
-        Questions or critiques? <a href="https://x.com/peteromallet" style="color:#2563eb">@peteromallet</a> &middot; <a href="mailto:peter@omalley.io" style="color:#2563eb">peter@omalley.io</a>
+<!-- Footer -->
+<div class="page-footer">
+    <div class="footer-contact">
+        Questions or critiques?
+        <a href="https://x.com/peteromallet">@peteromallet</a> &middot;
+        <a href="mailto:peter@omalley.io">peter@omalley.io</a>
     </div>
+    <div class="footer-links">
+        <a href="https://github.com/peteromallet/megaplan">Megaplan</a> &middot;
+        <a href="https://github.com/peteromallet/hermes-megaplan">hermes-megaplan</a> &middot;
+        <a href="https://www.swebench.com">SWE-bench</a>
+    </div>
+    <div class="footer-updated">Last updated: ${genAt}</div>
 </div>`;
 
     // Set up chart globals and draw
