@@ -17,7 +17,7 @@ The dashboard shows:
 ## Related Repositories
 
 - [**Megaplan**](https://github.com/peteromallet/megaplan) -- The general-purpose planning harness that structures LLM work into phases
-- [**hermes-agent**](https://github.com/peteromallet/hermes-agent) -- Fork of Hermes Agent with automated SWE-bench evaluation tooling (experiment orchestration code)
+- [**hermes-agent**](https://github.com/peteromallet/megaplan-autoimprover) -- Fork of Hermes Agent with automated SWE-bench evaluation tooling (experiment orchestration code)
 
 ## Data
 
