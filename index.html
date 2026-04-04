@@ -687,6 +687,83 @@ function renderDashboard(data) {
         repository for independent validation.
     </p>
 
+
+</div>
+
+<!-- Live Results -->
+<div class="section-wrap">
+    <h2 class="section-heading">Live Results</h2>
+    <p class="body-text" style="text-align:center;">
+        This experiment is running live. Here are the results to date.
+    </p>
+
+    <div class="chart-section">
+        <div class="chart-header">
+            <h3>${data.total_scored} / ${data.total_target} tasks scored</h3>
+            <div class="zoom-btns">
+                <button class="zoom-btn" onclick="setZoom(0)">All</button>
+                <button class="zoom-btn" onclick="setZoom(100)">Last 100</button>
+                <button class="zoom-btn active" onclick="setZoom(50)">Last 50</button>
+                <button class="zoom-btn" onclick="setZoom(20)">Last 20</button>
+            </div>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="chart" width="760" height="240"></canvas>
+            <div class="chart-tooltip" id="tooltip"></div>
+        </div>
+        <div class="figure-caption">Cumulative pass rate over scored tasks. Dashed line indicates the Claude 4.5 Opus baseline (${theirScore}%).</div>
+    </div>
+
+    <div class="prob-section" id="prob-section"></div>
+
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="stat-value">${data.streak >= 5 ? '\uD83D\uDD25 ' : ''}${data.streak}</div>
+            <div class="stat-label">streak</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${data.momentum_pct}%</div>
+            <div class="stat-label">last 5</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${data.tasks_per_hour}</div>
+            <div class="stat-label">tasks/hr</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${avgTimeStr}</div>
+            <div class="stat-label">avg time</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${data.manifest_claimed}</div>
+            <div class="stat-label">in flight</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${remaining}</div>
+            <div class="stat-label">remaining</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${etaStr}</div>
+            <div class="stat-label">ETA (last 5 pace)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Tasks -->
+<div class="section-wrap">
+    <h2 class="section-heading">Tasks</h2>
+    <div class="content" style="padding-top:0">
+        <div class="section" style="margin-top:0">
+            <div class="section-header">
+                <h3>${data.total_scored} scored \u2014 click to expand</h3>
+                <button class="zoom-btn" onclick="toggleTaskSort()" id="sort-btn">Oldest first</button>
+            </div>
+            <div id="task-list">${taskRows}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Cost -->
+<div class="section-wrap">
     <h2 class="section-heading">Cost</h2>
     <p class="body-text">
         GLM-5.1 is free via Z.AI's coding plan endpoint, so six of eight pipeline phases
@@ -721,109 +798,11 @@ function renderDashboard(data) {
     </table>
     <p class="body-text" style="font-size:0.85rem; color:#888;">
         Cost estimates based on character-count token approximation across completed tasks.
-        GLM-5.1 pricing confirmed as $0 on the Z.AI coding plan. MiniMax M2.7-highspeed
-        at $0.60/M input, $2.40/M output (direct API). Retry waste from failed API calls
-        and gate iteration loops accounts for the gap between clean and actual costs.
+        GLM-5.1 is free on the Z.AI coding plan. MiniMax M2.7-highspeed at $0.60/M input,
+        $2.40/M output (direct API). The gap between clean and retry costs is due to harness
+        retries \u2014 API availability errors and output formatting failures, not task-level
+        failures. These are being reduced as the harness matures.
     </p>
-
-</div>
-
-<!-- Live Results -->
-<div class="section-wrap">
-    <h2 class="section-heading">Live Results</h2>
-    <p class="body-text" style="text-align:center;">
-        This experiment is running live. Here are the results to date.
-    </p>
-    <div class="results-grid">
-        <div class="results-left">
-            <div class="versus">
-                <div class="side side-open">
-                    <div class="side-label"><span class="live-dot"></span> Open Source + Megaplan</div>
-                    <div class="side-models">${esc(executeModel)} + ${esc(critiqueModel)}</div>
-                    <div class="side-score" style="color:${winning ? '#16a34a' : '#555'}">${ourScore.toFixed(1)}%</div>
-                    <div class="side-detail">${data.passed}/${data.total_scored} resolved</div>
-                    <div class="side-progress">${data.total_scored} of ${data.total_target} tasks</div>
-                </div>
-                <div class="side side-closed">
-                    <div class="side-label">Closed Source</div>
-                    <div class="side-models">${esc(cs.name)}</div>
-                    <div class="side-score" style="color:${winning ? '#555' : '#6366f1'}">${theirScore}%</div>
-                    <div class="side-detail">SWE-bench Verified</div>
-                    <div class="side-progress">500 tasks &middot; <a href="https://www.swebench.com">benchmark</a></div>
-                </div>
-            </div>
-        </div>
-        <div class="results-right">
-            <div class="prob-section" id="prob-section"></div>
-        </div>
-    </div>
-</div>
-
-<!-- Score Progression -->
-<div class="section-wrap">
-    <h2 class="section-heading">Score Progression</h2>
-    <div class="chart-section">
-        <div class="chart-header">
-            <h3>${data.total_scored} / ${data.total_target} tasks scored</h3>
-            <div class="zoom-btns">
-                <button class="zoom-btn" onclick="setZoom(0)">All</button>
-                <button class="zoom-btn" onclick="setZoom(100)">Last 100</button>
-                <button class="zoom-btn active" onclick="setZoom(50)">Last 50</button>
-                <button class="zoom-btn" onclick="setZoom(20)">Last 20</button>
-            </div>
-        </div>
-        <div class="chart-wrap">
-            <canvas id="chart" width="760" height="240"></canvas>
-            <div class="chart-tooltip" id="tooltip"></div>
-        </div>
-        <div class="figure-caption">Figure 1: Cumulative pass rate over scored tasks. Dashed line indicates the Opus baseline.</div>
-    </div>
-
-    <div class="stats-bar">
-        <div class="stat">
-            <div class="stat-value">${data.streak >= 5 ? '\uD83D\uDD25 ' : ''}${data.streak}</div>
-            <div class="stat-label">streak</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value">${data.momentum_pct}%</div>
-            <div class="stat-label">last 5</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value">${data.tasks_per_hour}</div>
-            <div class="stat-label">tasks/hr</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value">${avgTimeStr}</div>
-            <div class="stat-label">avg time</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value">${data.manifest_claimed}</div>
-            <div class="stat-label">in flight</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value">${remaining}</div>
-            <div class="stat-label">remaining</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value">${etaStr}</div>
-            <div class="stat-label">ETA (last 5 pace)</div>
-        </div>
-    </div>
-</div>
-
-
-<!-- Tasks -->
-<div class="section-wrap">
-    <h2 class="section-heading">Tasks</h2>
-    <div class="content" style="padding-top:0">
-        <div class="section" style="margin-top:0">
-            <div class="section-header">
-                <h3>${data.total_scored} scored \u2014 click to expand</h3>
-                <button class="zoom-btn" onclick="toggleTaskSort()" id="sort-btn">Oldest first</button>
-            </div>
-            <div id="task-list">${taskRows}</div>
-        </div>
-    </div>
 </div>
 
 <!-- Key Findings -->
