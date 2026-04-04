@@ -433,18 +433,20 @@ function renderProbability(passes, total, target, opusScore) {
     const b = (total - passes) + 1;
     const remaining = target - total;
     const opusFrac = opusScore / 100;
-    const N = 50000;
+    const N = 10000;
 
-    // Sample final rates from posterior
+    // Sample final rates from posterior using normal approx for binomial
     const finalRates = [];
     let beatCount = 0;
     for (let i = 0; i < N; i++) {
         const p = betaSample(a, b);
-        // Simulate remaining tasks
-        let futurePasses = 0;
-        for (let j = 0; j < remaining; j++) {
-            if (Math.random() < p) futurePasses++;
-        }
+        // Normal approximation to Binomial(remaining, p)
+        const mean = remaining * p;
+        const std = Math.sqrt(remaining * p * (1 - p));
+        // Box-Muller for normal sample
+        const u1 = Math.random(), u2 = Math.random();
+        const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        const futurePasses = Math.max(0, Math.min(remaining, Math.round(mean + std * z)));
         const rate = (passes + futurePasses) / target;
         finalRates.push(rate);
         if (rate > opusFrac) beatCount++;
