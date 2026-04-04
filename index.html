@@ -409,7 +409,7 @@ function fmtTime(s) {
     return m + 'm' + sec + 's';
 }
 
-let DATA, TARGET, THEIR_SCORE, currentZoom;
+let DATA, TARGET, THEIR_SCORE, OPUS_RESULTS, currentZoom;
 
 function renderDashboard(data) {
     const cs = data.closed_source;
@@ -496,11 +496,6 @@ function renderDashboard(data) {
             }
         }
 
-        let issueHtml = '';
-        if (t.issue_description) {
-            issueHtml = `<div class="issue-desc">${esc(t.issue_description).replace(/\n/g, '<br>')}</div>`;
-        }
-
         let ghLink = '';
         if (t.github_url) {
             ghLink = `<a href="${t.github_url}" target="_blank" class="gh-link" onclick="event.stopPropagation()">View original issue \u2192</a>`;
@@ -510,6 +505,28 @@ function renderDashboard(data) {
         if (t.explanation) {
             expl = `<div class="expl">${esc(t.explanation)}</div>`;
         }
+
+        // Opus comparison for this task
+        let opusCmpHtml = '';
+        const opusRes = data.opus_comparison && data.opus_comparison.opus_results;
+        if (opusRes && t.id in opusRes) {
+            const wePassed = t.status === 'pass';
+            const opusPassed = opusRes[t.id];
+            if (wePassed && !opusPassed) {
+                opusCmpHtml = '<div style="font-size:0.8rem;color:#16a34a;margin-bottom:0.4rem;font-weight:600;">\u2713 We solved this, Opus did not</div>';
+            } else if (!wePassed && opusPassed) {
+                opusCmpHtml = '<div style="font-size:0.8rem;color:#dc2626;margin-bottom:0.4rem;font-weight:600;">\u2717 Opus solved this, we did not</div>';
+            } else if (wePassed && opusPassed) {
+                opusCmpHtml = '<div style="font-size:0.8rem;color:#888;margin-bottom:0.4rem;">Both solved</div>';
+            } else {
+                opusCmpHtml = '<div style="font-size:0.8rem;color:#888;margin-bottom:0.4rem;">Neither solved</div>';
+            }
+        }
+
+        const totalTimeStr = t.total_time_s ? fmtTime(t.total_time_s) : '';
+        const gateIterStr = t.gate_iterations ? t.gate_iterations + ' gate iteration' + (t.gate_iterations !== 1 ? 's' : '') : '';
+        let detailLine = [totalTimeStr, gateIterStr].filter(Boolean).join(' \u00b7 ');
+        const detailHtml = detailLine ? `<div style="font-size:0.75rem;color:#999;margin-bottom:0.4rem;">${detailLine}</div>` : '';
 
         taskRows += `<div class="task-row ${cls}" onclick="this.querySelector('.task-expand')?.classList.toggle('show')">
             <div class="task-main">
@@ -521,9 +538,10 @@ function renderDashboard(data) {
             </div>
             <div class="task-expand">
                 ${ghLink}
-                ${issueHtml}
+                ${opusCmpHtml}
                 ${expl}
                 <div class="phase-bar">${phaseBar}</div>
+                ${detailHtml}
             </div>
         </div>`;
     }
@@ -703,6 +721,7 @@ function renderDashboard(data) {
                 <button class="zoom-btn" onclick="setZoom(0)">All</button>
                 <button class="zoom-btn active" onclick="setZoom(100)">Last 100</button>
                 <button class="zoom-btn" onclick="setZoom(50)">Last 50</button>
+                <label style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#666;margin-left:8px;cursor:pointer;"><input type="checkbox" id="show-opus" onchange="drawChart()"> Show Opus</label>
             </div>
         </div>
         <div class="chart-wrap" style="position:relative;">
@@ -744,6 +763,8 @@ function renderDashboard(data) {
             <div class="stat-label">ETA (last 5 pace)</div>
         </div>
     </div>
+
+    <div id="opus-comparison-stats" style="max-width:680px; margin:0 auto; text-align:center;"></div>
 </div>
 
 <!-- Tasks -->
@@ -834,10 +855,36 @@ function renderDashboard(data) {
     <div class="footer-updated">Last updated: ${genAt}</div>
 </div>`;
 
+    // Opus comparison summary
+    const oc = data.opus_comparison || {};
+    const ourOnlyCount = (oc.our_only || []).length;
+    const opusOnlyCount = (oc.opus_only || []).length;
+    const bothSolvedCount = (oc.both_solved || []).length;
+    const opusStatsEl = document.getElementById('opus-comparison-stats');
+    if (opusStatsEl && (ourOnlyCount || opusOnlyCount || bothSolvedCount)) {
+        opusStatsEl.innerHTML = `
+            <div style="display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;padding:0.75rem 0;font-size:0.85rem;">
+                <div style="text-align:center;">
+                    <div style="font-size:1.3rem;font-weight:700;color:#16a34a;">${ourOnlyCount}</div>
+                    <div style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Only we solved</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:1.3rem;font-weight:700;color:#dc2626;">${opusOnlyCount}</div>
+                    <div style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Only Opus solved</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:1.3rem;font-weight:700;color:#555;">${bothSolvedCount}</div>
+                    <div style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Both solved</div>
+                </div>
+            </div>
+        `;
+    }
+
     // Set up chart globals and draw
     DATA = data.progression;
     TARGET = data.total_target;
     THEIR_SCORE = theirScore;
+    OPUS_RESULTS = oc.opus_results || {};
     currentZoom = 100;
     drawChart();
     setupTooltip();
@@ -1082,6 +1129,50 @@ function drawChart() {
         ctx.fillStyle = d.result === 'pass' ? 'rgba(22,163,106,0.6)' : 'rgba(220,38,38,0.6)';
         ctx.fill();
     });
+
+    // Opus cumulative pass rate line (when "Show Opus" is checked)
+    const showOpus = document.getElementById('show-opus');
+    if (showOpus && showOpus.checked && OPUS_RESULTS && DATA.length > 0) {
+        // Compute Opus cumulative pass rate using the same task order as our progression
+        let opusRunPass = 0, opusRunTotal = 0;
+        const opusProgression = [];
+        for (const d of DATA) {
+            const tid = d.task_id;
+            if (tid in OPUS_RESULTS) {
+                opusRunTotal++;
+                if (OPUS_RESULTS[tid]) opusRunPass++;
+                opusProgression.push({ n: d.n, pass_rate: Math.round(opusRunPass / opusRunTotal * 1000) / 10 });
+            }
+        }
+        const opusVis = opusProgression.filter(d => d.n > xMin);
+        if (opusVis.length > 1) {
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.7;
+            ctx.setLineDash([]);
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            opusVis.forEach((d, i) => {
+                const px = x(d.n), py = y(d.pass_rate);
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            // Label last point
+            const opusLast = opusVis[opusVis.length - 1];
+            const olx = x(opusLast.n), oly = y(opusLast.pass_rate);
+            ctx.fillStyle = '#6366f1';
+            ctx.font = 'bold 10px -apple-system, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText('Opus ' + opusLast.pass_rate + '%', olx - 6, oly - 6);
+
+            // Store opus dots for tooltip
+            canvas._opusDots = opusVis.map(d => ({ x: x(d.n), y: y(d.pass_rate), d }));
+        }
+    } else if (document.getElementById('chart')) {
+        document.getElementById('chart')._opusDots = null;
+    }
 
     // Last point highlight
     const lx = x(last.n), ly = y(last.pass_rate);
