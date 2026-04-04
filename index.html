@@ -1031,7 +1031,45 @@ function renderDashboard(data) {
         <a href="https://www.swebench.com">SWE-bench</a>
     </div>
     <div class="footer-updated">Last updated: ${genAt}</div>
-</div>`;
+</div>
+
+<!-- Reproduction -->
+<div class="section-wrap" style="margin-top:2rem;">
+    <h2 class="section-heading">Verify Our Results</h2>
+    <p class="body-text">
+        Every result on this page can be independently verified. Here's how to check a single task:
+    </p>
+    <pre style="max-width:680px; margin:1rem auto; padding:1rem; background:#f8f8f8; border:1px solid #e5e5e5; border-radius:4px; font-size:0.8rem; line-height:1.6; overflow-x:auto; color:#333;">
+<span style="color:#888"># 1. Get our prediction for a specific task</span>
+cat results/auto-improve/iteration-021/_swebench_predictions/django__django-11848.jsonl
+
+<span style="color:#888"># 2. Score it against the official SWE-bench test suite</span>
+pip install swebench
+python -m swebench.harness.run_evaluation \\
+    --predictions_path predictions.jsonl \\
+    --swe_bench_tasks princeton-nlp/SWE-bench_Verified \\
+    --run_id verify
+
+<span style="color:#888"># 3. Compare our patch against the golden reference</span>
+python -c "
+from datasets import load_dataset
+ds = load_dataset('princeton-nlp/SWE-bench_Verified', split='test')
+golden = {i['instance_id']: i['patch'] for i in ds}
+print(golden['django__django-11848'])
+"
+
+<span style="color:#888"># 4. Download the full execution trace</span>
+curl -L https://github.com/peteromallet/swe-bench-challenge/releases/download/v0.1-traces/django__django-11848.json.gz | gunzip | python -m json.tool | less</pre>
+    <p class="body-text" style="font-size:0.85rem; color:#888; text-align:center;">
+        All predictions are in the
+        <a href="https://github.com/peteromallet/hermes-megaplan">hermes-megaplan</a> repo.
+        Full traces are in the
+        <a href="https://github.com/peteromallet/swe-bench-challenge/releases/tag/v0.1-traces">GitHub Release</a>.
+        The scoring harness is maintained by
+        <a href="https://www.swebench.com">SWE-bench</a>.
+    </p>
+</div>
+`;
 
     // Opus comparison summary
     const oc = data.opus_comparison || {};
