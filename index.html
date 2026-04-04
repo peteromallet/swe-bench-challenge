@@ -957,49 +957,42 @@ function renderDashboard(data) {
     </div>
 </div>
 
-<!-- Cost -->
+<!-- Critiques -->
 <div class="section-wrap">
-    <h2 class="section-heading">Cost</h2>
-    <p class="body-text">
-        GLM-5.1 is accessed via Z.AI's coding plan ($10\u201330/month subscription with quota limits).
-        At standard API rates (GLM-5-Code: $1.20/M input, $5.00/M output), the GLM phases would cost
-        ~$0.37/task. MiniMax M2.7-highspeed ($0.60/M input, $2.40/M output) handles critique and review.
-    </p>
-    <table style="max-width:560px; margin:1rem auto; border-collapse:collapse; font-size:0.9rem;">
-        <thead>
-            <tr style="border-bottom:2px solid #e0e0e0; text-align:left;">
-                <th style="padding:0.4rem 1rem;"></th>
-                <th style="padding:0.4rem 1rem;">Per task</th>
-                <th style="padding:0.4rem 1rem;">500 tasks</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr style="border-bottom:1px solid #f0f0f0;">
-                <td style="padding:0.4rem 1rem; font-weight:600;">GLM + MiniMax (clean, at API rates)</td>
-                <td style="padding:0.4rem 1rem; color:#16a34a;">~$0.65</td>
-                <td style="padding:0.4rem 1rem; color:#16a34a;">~$325</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f0f0f0;">
-                <td style="padding:0.4rem 1rem; font-weight:600;">GLM + MiniMax (with harness retries)</td>
-                <td style="padding:0.4rem 1rem;">~$1.40</td>
-                <td style="padding:0.4rem 1rem;">~$700</td>
-            </tr>
-            <tr>
-                <td style="padding:0.4rem 1rem; font-weight:600;">Claude 4.5 Opus</td>
-                <td style="padding:0.4rem 1rem; color:#6366f1;">$0.75</td>
-                <td style="padding:0.4rem 1rem; color:#6366f1;">$375</td>
-            </tr>
-        </tbody>
-    </table>
-    <p class="body-text" style="font-size:0.85rem; color:#888;">
-        The gap between clean and retry costs is due to harness retries \u2014 API availability errors
-        and output formatting failures, not task-level failures. These are systematic issues that
-        are being reduced as the harness matures. While the current cost with retries is higher than
-        Opus, the underlying model costs are fundamentally cheaper \u2014 the clean-pass rate shows
-        the open-source pipeline is already cost-competitive at ~$0.65/task vs Opus's $0.75, and
-        this will improve significantly as retry waste is eliminated through harness improvements
-        and model fine-tuning for structured output adherence.
-    </p>
+    <h2 class="section-heading">Critiques</h2>
+    <p class="body-text">Honest issues with this experiment that we think are important to acknowledge.</p>
+    <ul class="body-list">
+        <li><strong>Cost is currently higher than Opus, not lower.</strong>
+            On clean passes the pipeline costs ~$0.65/task vs Opus's $0.75 \u2014 competitive.
+            But harness retries (API errors, formatting failures) inflate real-world cost to ~$1.40/task.
+            The underlying model pricing is fundamentally cheaper (GLM-5.1 via Z.AI coding plan at $10\u201330/month;
+            MiniMax at $0.60/$2.40 per M tokens), but the harness wastes tokens on retries that a more mature
+            system or fine-tuned models would avoid. Cost advantage is latent, not yet realised.
+        </li>
+        <li><strong>Models don't follow complex instructions reliably.</strong>
+            Even with template files and explicit step-by-step prompts, both GLM-5.1 and MiniMax-M2.7
+            produce malformed output, misuse tools, or ignore structural constraints frequently enough to
+            require multiple retries per task. This is the single biggest source of wasted compute. These
+            models were not fine-tuned for this kind of structured multi-phase execution \u2014 they're
+            general-purpose models being asked to do something quite specific.
+        </li>
+        <li><strong>The comparison is not apples-to-apples.</strong>
+            We're comparing a multi-model, multi-call orchestration pipeline against Opus running on
+            mini-SWE-agent (a simpler bash-only harness). Opus with the same Megaplan pipeline might
+            score significantly higher. The real finding may be that the harness adds value regardless
+            of the underlying model, not that open models are inherently competitive.
+        </li>
+        <li><strong>The outer loop was tuned on SWE-bench.</strong>
+            While no task-specific changes were made, ~25 iterations of human-guided improvement using
+            SWE-bench samples means the prompts and pipeline were shaped by SWE-bench failure modes.
+            The claim of full generalisability is stronger than the evidence supports.
+        </li>
+        <li><strong>Sample size is still small.</strong>
+            With ${data.total_scored} of 500 tasks scored, the confidence intervals on the pass rate
+            are wide. The Beta-Binomial model shows this transparently, but the headline numbers will
+            shift as more tasks are scored.
+        </li>
+    </ul>
 </div>
 
 <!-- Key Findings -->
