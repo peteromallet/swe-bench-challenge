@@ -1581,6 +1581,17 @@ function openTaskPopup(taskId) {
     }
     if (!expandHtml) expandHtml = '<p>No details available for ' + taskId + '</p>';
 
+    // Rewrite trace IDs and onclick handlers for popup context
+    const popupTraceId = 'popup-trace-' + taskId;
+    expandHtml = expandHtml.replace(
+        new RegExp('id="trace-' + taskId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"', 'g'),
+        'id="' + popupTraceId + '"'
+    );
+    expandHtml = expandHtml.replace(
+        /toggleTrace\([^)]+\)/g,
+        'togglePopupTrace(\'' + taskId + '\')'
+    );
+
     // Create popup
     let popup = document.getElementById('task-popup');
     if (!popup) {
@@ -1598,6 +1609,58 @@ function openTaskPopup(taskId) {
         expandHtml +
         '</div>';
     popup.style.display = 'flex';
+}
+
+function togglePopupTrace(taskId) {
+    const containerId = 'popup-trace-' + taskId;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const isOpen = container.classList.contains('show');
+    if (isOpen) {
+        container.classList.remove('show');
+        return;
+    }
+    container.classList.add('show');
+
+    if (_traceCache[taskId]) {
+        _renderTraceInto(container, _traceCache[taskId]);
+        return;
+    }
+
+    container.innerHTML = '<div class="trace-loading">Loading trace...</div>';
+    fetch('traces/' + taskId + '.json')
+        .then(r => {
+            if (!r.ok) throw new Error('Trace not found');
+            return r.json();
+        })
+        .then(trace => {
+            _traceCache[taskId] = trace;
+            _renderTraceInto(container, trace);
+        })
+        .catch(err => {
+            container.innerHTML = '<div class="trace-loading">Trace not available: ' + esc(err.message) + '</div>';
+        });
+}
+
+function _renderTraceInto(container, trace) {
+    let html = '';
+    if (trace.patch) {
+        html += '<h4 style="font-size:0.85rem;margin:0.75rem 0 0.25rem;">Patch</h4>';
+        html += '<pre class="diff-block">' + highlightDiff(trace.patch) + '</pre>';
+    }
+    if (trace.phases) {
+        html += '<h4 style="font-size:0.85rem;margin:0.75rem 0 0.25rem;">Phases</h4>';
+        for (const phase of trace.phases) {
+            const pm = Math.floor(phase.duration_s / 60);
+            const ps = phase.duration_s % 60;
+            const dur = pm ? pm + 'm' + ps + 's' : ps + 's';
+            html += '<div style="font-size:0.8rem;margin:0.25rem 0;color:#555;">';
+            html += '<strong>' + esc(phase.name) + '</strong> (' + dur + ', ' + esc(phase.model || '') + ')';
+            if (phase.summary) html += ' \u2014 ' + esc(phase.summary);
+            html += '</div>';
+        }
+    }
+    container.innerHTML = html || '<div class="trace-loading">No trace data</div>';
 }
 
 let _showAll = false;
