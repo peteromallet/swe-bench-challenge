@@ -340,8 +340,9 @@
     .issue-desc { font-size: 0.8rem; color: #555; margin-bottom: 0.5rem; line-height: 1.6; padding: 0.75rem; background: #fafafa; border-left: 3px solid #e5e5e5; border-radius: 0 4px 4px 0; max-height: 120px; overflow-y: auto; }
     .expl { font-size: 0.8rem; color: #555; margin-bottom: 0.4rem; line-height: 1.5; }
 
-    .phase-bar { display: flex; gap: 1px; margin: 0.5rem 0; height: 20px; border-radius: 4px; overflow: hidden; border: 1px solid #e5e5e5; }
-    .phase-bar-seg { font-size: 0.55rem; color: #555; display: flex; align-items: center; justify-content: center; overflow: hidden; min-width: 0; }
+    .phase-bar { display: flex; gap: 1px; margin: 0.5rem 0; height: 24px; border-radius: 4px; overflow: hidden; border: 1px solid #e5e5e5; position: relative; }
+    .phase-bar-seg { font-size: 0.6rem; color: #555; display: flex; align-items: center; justify-content: center; overflow: hidden; min-width: 0; transition: opacity 0.15s; }
+    .phase-bar-seg:hover { opacity: 0.8; }
     .phase-prep { background: #dbeafe; }
     .phase-plan { background: #bfdbfe; }
     .phase-critique { background: #e9d5ff; }
@@ -669,14 +670,37 @@ function renderDashboard(data) {
 
         let phaseBar = '';
         if (t.phases && t.phases.length) {
-            const maxTime = Math.max(t.total_time_s, 1);
-            for (const p of t.phases) {
-                const pctWidth = maxTime ? Math.max(p.duration_s / maxTime * 100, 2) : 5;
+            // Sort phases into pipeline execution order, take last run only
+            const phaseOrder = ['init', 'prep', 'plan', 'critique', 'gate', 'revise', 'finalize', 'execute', 'review', 'verify'];
+            const lastRun = [];
+            const seen = {};
+            // Walk backwards to find the last complete run
+            for (let i = t.phases.length - 1; i >= 0; i--) {
+                const p = t.phases[i];
+                const base = p.name.split('_')[0];
+                if (base === 'init' && lastRun.length > 0) break; // hit previous run boundary
+                if (!seen[base + '_' + (seen[base] || 0)]) {
+                    lastRun.unshift(p);
+                }
+            }
+            // Sort by pipeline order
+            lastRun.sort((a, b) => {
+                const ai = phaseOrder.indexOf(a.name.split('_')[0]);
+                const bi = phaseOrder.indexOf(b.name.split('_')[0]);
+                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+            });
+            // Filter out init (0s) and build bar
+            const phases = lastRun.filter(p => p.duration_s > 0);
+            const totalTime = phases.reduce((s, p) => s + p.duration_s, 0) || 1;
+            for (const p of phases) {
+                const pctWidth = Math.max(p.duration_s / totalTime * 100, 3);
                 const phaseCls = 'phase-' + p.name.split('_')[0];
                 const pm = Math.floor(p.duration_s / 60);
                 const ps = p.duration_s % 60;
                 const durStr = pm ? pm + 'm' + ps + 's' : ps + 's';
-                phaseBar += `<div class="phase-bar-seg ${phaseCls}" style="width:${pctWidth}%" title="${esc(p.name)}: ${durStr} (${esc(p.model)})">${p.name.substr(0, 3)}</div>`;
+                const label = p.name.split('_')[0];
+                const modelShort = (p.model || '').replace('zhipu:', '').replace('minimax:', '');
+                phaseBar += `<div class="phase-bar-seg ${phaseCls}" style="width:${pctWidth}%; cursor:pointer;" onclick="event.stopPropagation()" title="${label}: ${durStr}\nModel: ${modelShort}">${label.substr(0, 4)}</div>`;
             }
         }
 
