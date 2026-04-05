@@ -321,6 +321,10 @@
     .task-row.fail .icon { color: #dc2626; }
     .task-row.skip .icon { color: #999; }
     .task-row.pending .icon { color: #ca8a04; }
+    .task-row.retrying .icon { color: #f59e0b; }
+    .task-row.running .icon { color: #2563eb; }
+    .task-row.queued .icon { color: #d0d0d0; }
+    .task-row.error .icon { color: #dc2626; }
     .icon { width: 1rem; flex-shrink: 0; font-size: 0.9rem; }
     .tid { font-size: 0.8rem; color: #555; font-family: monospace; }
     .task-meta { font-size: 0.75rem; color: #bbb; margin-left: auto; }
@@ -659,6 +663,10 @@ function renderDashboard(data) {
         if (t.status === 'pass') { icon = '\u2713'; cls = 'pass'; }
         else if (t.status === 'fail') { icon = '\u2717'; cls = 'fail'; }
         else if (t.status === 'skip') { icon = '\u2298'; cls = 'skip'; }
+        else if (t.status === 'retrying') { icon = '\u21BB'; cls = 'retrying'; }
+        else if (t.status === 'running') { icon = '\u25B6'; cls = 'running'; }
+        else if (t.status === 'error') { icon = '!'; cls = 'error'; }
+        else if (t.status === 'queued') { icon = '\u2022'; cls = 'queued'; }
         else { icon = '\u2026'; cls = 'pending'; }
 
         const catHtml = t.category ? `<span class="tag fail-tag">${esc(t.category)}</span>` : '';
@@ -988,9 +996,13 @@ function renderDashboard(data) {
             <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
                 <h3 style="margin:0;">${data.total_scored} scored</h3>
                 <select id="filter-status" onchange="filterTasks()" style="font-size:0.75rem; padding:2px 6px; border:1px solid #d0d0d0; border-radius:3px; background:#fff;">
-                    <option value="all">All results</option>
-                    <option value="pass">Passed only</option>
-                    <option value="fail">Failed only</option>
+                    <option value="scored">Scored only</option>
+                    <option value="all">All 500 tasks</option>
+                    <option value="pass">Passed</option>
+                    <option value="fail">Failed</option>
+                    <option value="retrying">Retrying</option>
+                    <option value="queued">Queued</option>
+                    <option value="running">Running</option>
                 </select>
                 <select id="filter-repo" onchange="filterTasks()" style="font-size:0.75rem; padding:2px 6px; border:1px solid #d0d0d0; border-radius:3px; background:#fff;">
                     <option value="all">All repos</option>
@@ -1553,8 +1565,12 @@ function filterTasks() {
         const taskRepo = tid.split('__')[0] || '';
 
         let show = true;
-        if (status === 'pass' && !cls.includes('pass')) show = false;
-        if (status === 'fail' && !cls.includes('fail')) show = false;
+        if (status === 'scored' && !cls.includes('pass') && !cls.includes('fail')) show = false;
+        else if (status === 'pass' && !cls.includes('pass')) show = false;
+        else if (status === 'fail' && !cls.includes('fail')) show = false;
+        else if (status === 'retrying' && !cls.includes('retrying')) show = false;
+        else if (status === 'queued' && !cls.includes('queued')) show = false;
+        else if (status === 'running' && !cls.includes('running')) show = false;
         if (repo !== 'all' && taskRepo !== repo) show = false;
 
         row.style.display = show ? '' : 'none';
