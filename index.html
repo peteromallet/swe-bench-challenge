@@ -939,7 +939,7 @@ function renderDashboard(data) {
 
     <div class="chart-section">
         <div class="chart-header">
-            <h3>After ${data.total_scored} tasks, GLM+MiniMax with Megaplan is ${ourScore > theirScore ? 'ahead' : ourScore < theirScore ? 'behind' : 'level'} ${ourScore.toFixed(1)} to ${theirScore} overall${opusTaskRate ? (parseFloat(opusTaskRate) > ourScore ? ', but on a task-by-task basis is behind \u2014 ' + ourScore.toFixed(1) + '% vs ' + opusTaskRate + '% for Opus on the same tasks' : (parseFloat(opusTaskRate) < ourScore ? (ourScore > theirScore ? ', and on a task-by-task basis is also ahead' : ', but on a task-by-task basis is ahead') + ' \u2014 ' + ourScore.toFixed(1) + '% vs ' + opusTaskRate + '% for Opus on the same tasks' : ', and tied with Opus on the same tasks at ' + opusTaskRate + '%')) : ''}</h3>
+            <h3 id="chart-title"></h3>
             <div class="zoom-btns">
                 <button class="zoom-btn" onclick="setZoom(0)">All</button>
                 <button class="zoom-btn active" onclick="setZoom(100)">Last 100</button>
@@ -1209,6 +1209,26 @@ python -m auto_improve.score \\
 
     // Probability computation
     renderProbability(data.passed, data.total_scored, data.total_target, theirScore);
+
+    // Build chart title with correct language for all cases
+    const titleEl = document.getElementById('chart-title');
+    if (titleEl) {
+        const ov = ourScore > theirScore ? 'ahead' : ourScore < theirScore ? 'behind' : 'level';
+        let title = 'After ' + data.total_scored + ' tasks, GLM+MiniMax with Megaplan is ' + ov + ' ' + ourScore.toFixed(1) + ' to ' + theirScore + ' overall';
+        if (opusTaskRate) {
+            const tr = parseFloat(opusTaskRate);
+            if (tr === ourScore) {
+                title += ', and tied with Opus at ' + opusTaskRate + '% on the same tasks';
+            } else {
+                const taskAhead = tr < ourScore;
+                const same = (taskAhead && ov === 'ahead') || (!taskAhead && ov === 'behind');
+                title += same ? ', and ' : ', but ';
+                title += 'on a task-by-task basis is ' + (taskAhead ? 'ahead' : 'behind');
+                title += ' \u2014 ' + ourScore.toFixed(1) + '% vs ' + opusTaskRate + '% for Opus';
+            }
+        }
+        titleEl.textContent = title;
+    }
 
     // Limit task list to 20 initially
     filterTasks();
