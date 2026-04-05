@@ -963,11 +963,28 @@ function renderDashboard(data) {
     </p>
     <div class="content" style="padding-top:0">
         <div class="section" style="margin-top:0">
-            <div class="section-header">
-                <h3>${data.total_scored} scored \u2014 click to expand</h3>
-                <button class="zoom-btn" onclick="toggleTaskSort()" id="sort-btn">Oldest first</button>
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+                <h3 style="margin:0;">${data.total_scored} scored</h3>
+                <select id="filter-status" onchange="filterTasks()" style="font-size:0.75rem; padding:2px 6px; border:1px solid #d0d0d0; border-radius:3px; background:#fff;">
+                    <option value="all">All results</option>
+                    <option value="pass">Passed only</option>
+                    <option value="fail">Failed only</option>
+                </select>
+                <select id="filter-repo" onchange="filterTasks()" style="font-size:0.75rem; padding:2px 6px; border:1px solid #d0d0d0; border-radius:3px; background:#fff;">
+                    <option value="all">All repos</option>
+                    ${[...new Set(sortedTasks.map(t => t.repo))].sort().map(r => '<option value="' + r + '">' + r + '</option>').join('')}
+                </select>
+                <select id="filter-sort" onchange="filterTasks()" style="font-size:0.75rem; padding:2px 6px; border:1px solid #d0d0d0; border-radius:3px; background:#fff;">
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="fastest">Fastest first</option>
+                    <option value="slowest">Slowest first</option>
+                </select>
             </div>
             <div id="task-list">${taskRows}</div>
+            <div id="task-show-more" style="text-align:center; margin:1rem 0;">
+                <button class="zoom-btn" onclick="showAllTasks()" id="show-all-btn">Show all ${data.total_scored} tasks</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1479,15 +1496,74 @@ function setupTooltip() {
     canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
 }
 
-function toggleTaskSort() {
-    const list = document.getElementById('task-list');
-    const btn = document.getElementById('sort-btn');
-    const rows = Array.from(list.children);
-    rows.reverse();
-    list.innerHTML = '';
-    rows.forEach(r => list.appendChild(r));
-    btn.textContent = btn.textContent === 'Oldest first' ? 'Newest first' : 'Oldest first';
+let _showAll = false;
+
+function showAllTasks() {
+    _showAll = true;
+    filterTasks();
+    const btn = document.getElementById('show-all-btn');
+    if (btn) btn.parentElement.style.display = 'none';
 }
+
+function filterTasks() {
+    const list = document.getElementById('task-list');
+    if (!list) return;
+    const rows = Array.from(list.children);
+    const status = document.getElementById('filter-status')?.value || 'all';
+    const repo = document.getElementById('filter-repo')?.value || 'all';
+    const sort = document.getElementById('filter-sort')?.value || 'newest';
+
+    // Show/hide based on filters
+    let visible = 0;
+    rows.forEach(row => {
+        const cls = row.className || '';
+        const tid = row.querySelector('.tid')?.textContent || '';
+        const taskRepo = tid.split('__')[0] || '';
+
+        let show = true;
+        if (status === 'pass' && !cls.includes('pass')) show = false;
+        if (status === 'fail' && !cls.includes('fail')) show = false;
+        if (repo !== 'all' && taskRepo !== repo) show = false;
+
+        row.style.display = show ? '' : 'none';
+        row.dataset.time = row.querySelector('.task-meta')?.textContent || '';
+        if (show) visible++;
+    });
+
+    // Sort
+    const visibleRows = rows.filter(r => r.style.display !== 'none');
+    if (sort === 'oldest') {
+        visibleRows.reverse();
+    } else if (sort === 'fastest' || sort === 'slowest') {
+        visibleRows.sort((a, b) => {
+            const aTime = parseInt((a.querySelector('.task-meta')?.textContent || '0').replace(/[^0-9]/g, '')) || 0;
+            const bTime = parseInt((b.querySelector('.task-meta')?.textContent || '0').replace(/[^0-9]/g, '')) || 0;
+            return sort === 'fastest' ? aTime - bTime : bTime - aTime;
+        });
+    }
+    // Re-append in sorted order
+    visibleRows.forEach(r => list.appendChild(r));
+
+    // Limit to 20 unless show all
+    const limit = _showAll ? 9999 : 20;
+    let count = 0;
+    rows.forEach(row => {
+        if (row.style.display === 'none') return;
+        count++;
+        if (count > limit) row.style.display = 'none';
+    });
+
+    // Show/hide the "show all" button
+    const moreDiv = document.getElementById('task-show-more');
+    if (moreDiv) {
+        moreDiv.style.display = (!_showAll && visible > 20) ? '' : 'none';
+        const btn = document.getElementById('show-all-btn');
+        if (btn) btn.textContent = 'Show all ' + visible + ' tasks';
+    }
+}
+
+// Run filter on initial load to limit to 20
+setTimeout(filterTasks, 100);
 
 // --- Trace viewer ---
 const _traceCache = {};
