@@ -1391,16 +1391,29 @@ function drawChart() {
     // Opus cumulative pass rate line (when "Live Opus" is checked)
     const showOpus = document.getElementById('show-opus');
     if (showOpus && showOpus.checked && OPUS_RESULTS && DATA.length > 0) {
-        // Build Opus progression on the SAME tasks in the SAME order as ours
+        // Build Opus progression: first on our tasks (same order), then remaining tasks alphabetically
         let opusRunPass = 0, opusRunTotal = 0;
         const opusProgression = [];
+        const seenTasks = new Set();
+        // Phase 1: Opus results on tasks we've scored (same X positions as our dots)
         for (const d of DATA) {
             const tid = d.task_id;
             if (tid in OPUS_RESULTS) {
+                seenTasks.add(tid);
                 opusRunTotal++;
                 if (OPUS_RESULTS[tid]) opusRunPass++;
                 opusProgression.push({ n: d.n, pass_rate: Math.round(opusRunPass / opusRunTotal * 1000) / 10 });
             }
+        }
+        // Phase 2: Remaining Opus tasks we haven't scored yet (continue the line to 500)
+        const lastN = DATA.length > 0 ? DATA[DATA.length - 1].n : 0;
+        const remainingOpus = Object.keys(OPUS_RESULTS).filter(tid => !seenTasks.has(tid)).sort();
+        let extraN = lastN;
+        for (const tid of remainingOpus) {
+            extraN++;
+            opusRunTotal++;
+            if (OPUS_RESULTS[tid]) opusRunPass++;
+            opusProgression.push({ n: extraN, pass_rate: Math.round(opusRunPass / opusRunTotal * 1000) / 10 });
         }
         const opusVis = opusProgression.filter(d => d.n > xMin && d.n <= xMax);
         if (opusVis.length > 1) {
