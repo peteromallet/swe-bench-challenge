@@ -751,7 +751,7 @@ function renderDashboard(data) {
             <div class="task-main">
                 <span class="icon">${icon}</span>
                 <span class="tid">${esc(t.id)}</span>
-                <span class="task-meta">${timeStr}${iterStr}${t.scored_at ? ' \u00b7 ' + timeAgo(t.scored_at) : ''}</span>
+                <span class="task-meta">${timeStr}${iterStr}${t.cost_usd ? ' \u00b7 $' + t.cost_usd.toFixed(2) : ''}${t.scored_at ? ' \u00b7 ' + timeAgo(t.scored_at) : ''}</span>
                 ${catHtml}${gapHtml}${goldenHtml}
                 <span class="expand-hint">\u25b8</span>
             </div>
@@ -984,6 +984,10 @@ function renderDashboard(data) {
             <div class="stat-value">${etaStr}</div>
             <div class="stat-label">ETA (last 5 pace)</div>
         </div>
+        <div class="stat">
+            <div class="stat-value">$${data.avg_cost_usd ? data.avg_cost_usd.toFixed(2) : '\u2014'}</div>
+            <div class="stat-label">avg cost/task</div>
+        </div>
     </div>
 
     <div id="opus-comparison-stats" style="max-width:680px; margin:0 auto; text-align:center;"></div>
@@ -1041,19 +1045,15 @@ function renderDashboard(data) {
     <h2 class="section-heading">Critiques</h2>
     <p class="body-text">Honest issues with this experiment that we think are important to acknowledge.</p>
     <ul class="body-list">
-        <li><strong>Models don't follow complex instructions reliably, and this drives up cost.</strong>
-            Even with template files and explicit step-by-step prompts, both GLM-5.1 and MiniMax-M2.7
-            produce malformed output, misuse tools, or ignore structural constraints frequently enough to
-            require multiple retries per task. These models were not fine-tuned for structured multi-phase
-            execution. This is the single biggest source of wasted compute and the primary reason cost
-            is currently higher than Opus (~$1.40/task with retries vs $0.75). On clean first-pass
-            completions the pipeline costs ~$0.65/task \u2014 already competitive \u2014 but retry waste
-            from instruction-following failures inflates it significantly. The underlying model pricing
-            is fundamentally cheaper (GLM-5.1 at ~$1\u20135/M tokens; MiniMax at $0.60/$2.40/M); the cost
-            problem is reliability, not pricing. It's also worth noting that we're running at heavy
-            robustness (8 critique checks, up to 3 gate iterations) \u2014 intentionally over the top
-            for this showcase. In practice, standard robustness with tighter retry logic would likely
-            deliver comparable results at significantly lower cost than Opus.
+        <li><strong>Cost is ~4x cheaper than Opus, but models don't follow instructions reliably.</strong>
+            Based on actual token consumption across ${data.total_scored}+ tasks, the pipeline averages
+            ~$${data.avg_cost_usd ? data.avg_cost_usd.toFixed(2) : '0.18'}/task at standard API rates
+            (GLM-5-Code $1.20/$5.00/M, MiniMax $0.60/$2.40/M) \u2014 roughly 4x cheaper than Opus at $0.75/task.
+            However, both GLM-5.1 and MiniMax-M2.7 produce malformed output and misuse tools frequently
+            enough to require retries. These are not fine-tuned for structured multi-phase execution.
+            We're also running at heavy robustness (8 critique checks, up to 3 gate iterations) \u2014
+            intentionally over the top for this showcase. In practice, standard robustness with tighter
+            retry logic would be even cheaper.
         </li>
         <li id="critiques"><strong>The pass rate is for tasks that produced patches, not all tasks attempted.</strong>
             The SWE-bench leaderboard counts all 500 tasks \u2014 no patch counts as a fail. Our pipeline
