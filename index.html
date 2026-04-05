@@ -670,37 +670,27 @@ function renderDashboard(data) {
 
         let phaseBar = '';
         if (t.phases && t.phases.length) {
-            // Sort phases into pipeline execution order, take last run only
-            const phaseOrder = ['init', 'prep', 'plan', 'critique', 'gate', 'revise', 'finalize', 'execute', 'review', 'verify'];
-            const lastRun = [];
-            const seen = {};
-            // Walk backwards to find the last complete run
-            for (let i = t.phases.length - 1; i >= 0; i--) {
-                const p = t.phases[i];
+            // Aggregate: sum duration per phase type, ordered by pipeline stage
+            const phaseOrder = ['prep', 'plan', 'critique', 'gate', 'revise', 'finalize', 'execute', 'review', 'verify'];
+            const agg = {};
+            for (const p of t.phases) {
                 const base = p.name.split('_')[0];
-                if (base === 'init' && lastRun.length > 0) break; // hit previous run boundary
-                if (!seen[base + '_' + (seen[base] || 0)]) {
-                    lastRun.unshift(p);
-                }
+                if (base === 'init' || p.duration_s <= 0) continue;
+                if (!agg[base]) agg[base] = { duration_s: 0, model: p.model, count: 0 };
+                agg[base].duration_s += p.duration_s;
+                agg[base].count++;
             }
-            // Sort by pipeline order
-            lastRun.sort((a, b) => {
-                const ai = phaseOrder.indexOf(a.name.split('_')[0]);
-                const bi = phaseOrder.indexOf(b.name.split('_')[0]);
-                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-            });
-            // Filter out init (0s) and build bar
-            const phases = lastRun.filter(p => p.duration_s > 0);
+            const phases = phaseOrder.filter(k => agg[k]).map(k => ({ name: k, ...agg[k] }));
             const totalTime = phases.reduce((s, p) => s + p.duration_s, 0) || 1;
             for (const p of phases) {
                 const pctWidth = Math.max(p.duration_s / totalTime * 100, 3);
-                const phaseCls = 'phase-' + p.name.split('_')[0];
+                const phaseCls = 'phase-' + p.name;
                 const pm = Math.floor(p.duration_s / 60);
                 const ps = p.duration_s % 60;
                 const durStr = pm ? pm + 'm' + ps + 's' : ps + 's';
-                const label = p.name.split('_')[0];
                 const modelShort = (p.model || '').replace('zhipu:', '').replace('minimax:', '');
-                phaseBar += `<div class="phase-bar-seg ${phaseCls}" style="width:${pctWidth}%; cursor:pointer;" onclick="event.stopPropagation()" title="${label}: ${durStr}\nModel: ${modelShort}">${label.substr(0, 4)}</div>`;
+                const countStr = p.count > 1 ? ' (' + p.count + 'x)' : '';
+                phaseBar += `<div class="phase-bar-seg ${phaseCls}" style="width:${pctWidth}%; cursor:pointer;" onclick="event.stopPropagation()" title="${p.name}${countStr}: ${durStr}\nModel: ${modelShort}">${p.name.substr(0, 4)}</div>`;
             }
         }
 
