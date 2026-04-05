@@ -1212,57 +1212,68 @@ python -m auto_improve.score \\
 
 function renderProbability(passes, total, target, opusScore) {
     const prob = window._dashData && window._dashData.probability;
-    if (!prob || total < 3) { document.getElementById('prob-section').innerHTML = ''; return; }
+    const probTA = window._dashData && window._dashData.probability_task_aware;
+    if ((!prob && !probTA) || total < 3) { document.getElementById('prob-section').innerHTML = ''; return; }
 
-    const beatProb = prob.beat_prob;
-    const color = beatProb >= 60 ? '#16a34a' : beatProb >= 40 ? '#ca8a04' : '#dc2626';
-    const hist = prob.hist || [];
-    const histMax = Math.max(...hist, 1);
+    function probCard(p, title, subtitle, canvasId) {
+        if (!p) return '';
+        const bp = p.beat_prob;
+        const c = bp >= 60 ? '#16a34a' : bp >= 40 ? '#ca8a04' : '#dc2626';
+        return '<div style="flex:1; min-width:280px; text-align:center; padding:1rem; border:1px solid #e5e5e5; border-radius:6px; background:#fafafa;">' +
+            '<div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#888; margin-bottom:0.25rem;">' + title + '</div>' +
+            '<div class="prob-big" style="color:' + c + '">' + bp + '%</div>' +
+            '<div class="prob-label">' + subtitle + '</div>' +
+            '<div class="prob-bar-wrap" style="max-width:200px; margin:0.5rem auto;">' +
+            '<div class="prob-bar-bg"><div class="prob-bar-fill" style="width:' + bp + '%; background:' + c + '"></div></div></div>' +
+            '<div class="prob-ranges" style="margin-top:0.5rem;">' +
+            '<div class="prob-range"><div class="prob-range-val" style="color:#dc2626">' + p.p10 + '%</div><div class="prob-range-label">pessimistic</div></div>' +
+            '<div class="prob-range"><div class="prob-range-val" style="color:#1a1a1a">' + p.p50 + '%</div><div class="prob-range-label">expected</div></div>' +
+            '<div class="prob-range"><div class="prob-range-val" style="color:#16a34a">' + p.p90 + '%</div><div class="prob-range-label">optimistic</div></div>' +
+            '</div>' +
+            '<div style="margin-top:0.5rem;"><canvas id="' + canvasId + '" width="250" height="50"></canvas></div>' +
+            '</div>';
+    }
 
     const el = document.getElementById('prob-section');
-    el.innerHTML = `
-        <div style="display:flex; gap:2rem; align-items:flex-start; flex-wrap:wrap; max-width:680px; margin:1.5rem auto 0;">
-            <div style="flex:1; min-width:220px; text-align:center;">
-                <h3 style="font-family:Georgia,serif; font-size:1.1rem; font-weight:400; color:#111; margin-bottom:0.5rem;">Likelihood to beat Opus</h3>
-                <div class="prob-big" style="color:${color}">${beatProb}%</div>
-                <div class="prob-label">chance of finishing above ${opusScore}%<br>based on ${total} tasks scored</div>
-                <div class="prob-bar-wrap" style="max-width:200px; margin:0.75rem auto 0;">
-                    <div class="prob-bar-bg">
-                        <div class="prob-bar-fill" style="width:${beatProb}%; background: ${color}"></div>
-                    </div>
-                </div>
-            </div>
-            <div style="flex:1; min-width:250px;">
-                <div class="prob-ranges" style="justify-content:flex-start; margin-bottom:0.75rem;">
-                    <div class="prob-range">
-                        <div class="prob-range-val" style="color:#dc2626">${prob.p10}%</div>
-                        <div class="prob-range-label">pessimistic (10th)</div>
-                    </div>
-                    <div class="prob-range">
-                        <div class="prob-range-val" style="color:#1a1a1a">${prob.p50}%</div>
-                        <div class="prob-range-label">expected (median)</div>
-                    </div>
-                    <div class="prob-range">
-                        <div class="prob-range-val" style="color:#16a34a">${prob.p90}%</div>
-                        <div class="prob-range-label">optimistic (90th)</div>
-                    </div>
-                </div>
-                <div class="prob-dist" style="max-width:100%; margin:0;">
-                    <canvas id="prob-canvas" width="300" height="60"></canvas>
-                </div>
-                <div class="prob-method" onclick="this.querySelector('.prob-method-body').classList.toggle('show')" style="text-align:center;">
-                    <span class="prob-method-toggle">How do we calculate this? &#x25b8;</span>
-                    <div class="prob-method-body" style="text-align:left;">
-                        We use a <strong>Beta-Binomial model</strong>. With ${passes} passes out of ${total} scored,
-                        we fit a Beta(${passes + 1}, ${total - passes + 1}) posterior distribution over the true pass rate.
-                        We then draw 20,000 samples from this posterior and for each sample, simulate the remaining
-                        ${target - total} tasks using a binomial distribution. The percentage of simulations that finish
-                        above ${opusScore}% gives us the likelihood.
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+    el.innerHTML = '<div style="display:flex; gap:1rem; align-items:flex-start; flex-wrap:wrap; max-width:680px; margin:1.5rem auto 0;">' +
+        probCard(prob, 'Raw estimate', 'assumes uniform task difficulty', 'prob-canvas-raw') +
+        probCard(probTA, 'Task-aware estimate', 'uses per-task Opus results as difficulty signal', 'prob-canvas-ta') +
+        '</div>' +
+        '<div class="prob-method" onclick="this.querySelector(\'.prob-method-body\').classList.toggle(\'show\')" style="text-align:center; margin-top:0.75rem; max-width:680px; margin-left:auto; margin-right:auto;">' +
+        '<span class="prob-method-toggle">How do we calculate this? &#x25b8;</span>' +
+        '<div class="prob-method-body" style="text-align:left;">' +
+        '<strong>Raw:</strong> Beta-Binomial model \u2014 fits Beta(' + (passes+1) + ', ' + (total-passes+1) + ') posterior, simulates remaining ' + (target-total) + ' tasks uniformly.<br><br>' +
+        '<strong>Task-aware:</strong> Splits our pass rate by whether Opus passed or failed the same task, then projects remaining tasks using Opus per-task results as a difficulty prior. Tasks Opus failed are weighted with our lower conditional pass rate.' +
+        '</div></div>';
+
+    // Draw both histograms
+    function drawHist(canvasId, histData) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !histData || !histData.length) return;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        const W = rect.width, H = rect.height;
+        const bins = histData.length;
+        const binMin = 0.5, binMax = 1.0, binW = (binMax - binMin) / bins;
+        const opusFrac = opusScore / 100;
+        const histMax = Math.max(...histData, 1);
+        const barW = W / bins;
+        for (let i = 0; i < bins; i++) {
+            const barH = (histData[i] / histMax) * (H - 8);
+            const pct = binMin + (i + 0.5) * binW;
+            ctx.fillStyle = pct > opusFrac ? '#22c55e44' : '#ef444433';
+            ctx.fillRect(i * barW, H - barH, barW - 1, barH);
+        }
+        const opusX = ((opusFrac - binMin) / (binMax - binMin)) * W;
+        ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]);
+        ctx.beginPath(); ctx.moveTo(opusX, 0); ctx.lineTo(opusX, H); ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    if (prob) drawHist('prob-canvas-raw', prob.hist);
+    if (probTA) drawHist('prob-canvas-ta', probTA.hist);
 
     // Draw distribution
     const canvas = document.getElementById('prob-canvas');
