@@ -1,0 +1,26 @@
+{
+  "task_id": "sphinx-doc__sphinx-10673",
+  "status": "pass",
+  "patch": "diff --git a/sphinx/directives/other.py b/sphinx/directives/other.py\nindex 35e16e623..db32e8009 100644\n--- a/sphinx/directives/other.py\n+++ b/sphinx/directives/other.py\n@@ -116,7 +116,7 @@ class TocTree(SphinxDirective):\n                         break\n                 # absolutize filenames\n                 docname = docname_join(self.env.docname, docname)\n-                if url_re.match(ref) or ref == 'self':\n+                if url_re.match(ref) or ref == 'self' or ref in ('genindex', 'modindex', 'search'):\n                     toctree['entries'].append((title, ref))\n                 elif docname not in self.env.found_docs:\n                     if excluded(self.env.doc2path(docname, False)):\ndiff --git a/sphinx/environment/adapters/toctree.py b/sphinx/environment/adapters/toctree.py\nindex 9678e3c7c..d61e8be6b 100644\n--- a/sphinx/environment/adapters/toctree.py\n+++ b/sphinx/environment/adapters/toctree.py\n@@ -139,6 +139,23 @@ class TocTree:\n                         item = nodes.list_item('', para)\n                         # don't show subitems\n                         toc = nodes.bullet_list('', item)\n+                    elif ref in ('genindex', 'modindex', 'search'):\n+                        # Special Sphinx-generated pages\n+                        labels = self.env.domains['std'].data['labels']\n+                        if ref in labels:\n+                            docname, _, label_title = labels[ref]\n+                            if title is None:\n+                                title = label_title\n+                            reference = nodes.reference('', '', internal=True,\n+                                                        refuri=docname,\n+                                                        anchorname='',\n+                                                        *[nodes.Text(title)])\n+                            para = addnodes.compact_paragraph('', '', reference)\n+                            item = nodes.list_item('', para)\n+                            toc = nodes.bullet_list('', item)\n+                        else:\n+                            # labels not yet populated (first pass), skip gracefully\n+                            continue\n                     else:\n                         if ref in parents:\n                             logger.warning(__('circular toctree references '\ndiff --git a/sphinx/environment/collectors/toctree.py b/sphinx/environment/collectors/toctree.py\nindex 52a8fd8d1..b5701a756 100644\n--- a/sphinx/environment/collectors/toctree.py\n+++ b/sphinx/environment/collectors/toctree.py\n@@ -172,7 +172,7 @@ class TocTreeCollector(EnvironmentCollector):\n             if depth == 0:\n                 return\n             for (_title, ref) in toctreenode['entries']:\n-                if url_re.match(ref) or ref == 'self':\n+                if url_re.match(ref) or ref == 'self' or ref in ('genindex', 'modindex', 'search'):\n                     # don't mess with those\n                     continue\n                 elif ref in assigned:\n",
+  "total_time_s": 0,
+  "phases": [
+    {
+      "name": "init",
+      "file": "init_v1.json",
+      "model": "hermes",
+      "duration_s": 0,
+      "messages": [],
+      "message_count": 0,
+      "summary": "0 assistant messages"
+    },
+    {
+      "name": "prep",
+      "file": "prep_v1.json",
+      "model": "zhipu:glm-5.1",
+      "duration_s": 0,
+      "messages": [],
+      "message_count": 0,
+      "summary": "0 assistant messages"
+    }
+  ]
+}
