@@ -1,0 +1,26 @@
+{
+  "task_id": "sphinx-doc__sphinx-7440",
+  "status": "fail",
+  "patch": "diff --git a/sphinx/domains/std.py b/sphinx/domains/std.py\nindex d820cfe5c..07dc31db8 100644\n--- a/sphinx/domains/std.py\n+++ b/sphinx/domains/std.py\n@@ -305,7 +305,7 @@ def make_glossary_term(env: \"BuildEnvironment\", textnodes: Iterable[Node], index\n         term['ids'].append(node_id)\n \n     std = cast(StandardDomain, env.get_domain('std'))\n-    std.note_object('term', termtext.lower(), node_id, location=term)\n+    std.note_object('term', termtext, node_id, location=term)\n \n     # add an index entry too\n     indexnode = addnodes.index()\n@@ -933,6 +933,12 @@ class StandardDomain(Domain):\n                 break\n         else:\n             docname, labelid = '', ''\n+        if not docname and 'term' in objtypes:\n+            # case-insensitive fallback: target is lowercased by XRefRole(lowercase=True)\n+            for (objtype2, name), value in self.objects.items():\n+                if objtype2 == 'term' and name.lower() == target:\n+                    docname, labelid = value\n+                    break\n         if not docname:\n             return None\n         return make_refnode(builder, fromdocname, docname,\n@@ -959,6 +965,15 @@ class StandardDomain(Domain):\n                 results.append(('std:' + self.role_for_objtype(objtype),\n                                 make_refnode(builder, fromdocname, docname,\n                                              labelid, contnode)))\n+            elif objtype == 'term':\n+                # case-insensitive fallback for terms stored with original casing\n+                for (objtype2, name), value in self.objects.items():\n+                    if objtype2 == 'term' and name.lower() == ltarget:\n+                        docname, labelid = value\n+                        results.append(('std:' + self.role_for_objtype(objtype),\n+                                        make_refnode(builder, fromdocname, docname,\n+                                                     labelid, contnode)))\n+                        break\n         return results\n \n     def get_objects(self) -> Iterator[Tuple[str, str, str, str, str, int]]:\n",
+  "total_time_s": 0,
+  "phases": [
+    {
+      "name": "init",
+      "file": "init_v1.json",
+      "model": "hermes",
+      "duration_s": 0,
+      "messages": [],
+      "message_count": 0,
+      "summary": "0 assistant messages"
+    },
+    {
+      "name": "prep",
+      "file": "prep_v1.json",
+      "model": "zhipu:glm-5.1",
+      "duration_s": 0,
+      "messages": [],
+      "message_count": 0,
+      "summary": "0 assistant messages"
+    }
+  ]
+}
